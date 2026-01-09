@@ -1,1 +1,1 @@
-# Non-Uniform Perturbation Set in State-Adversary RL
+# Non-Uniform Perturbation Set in State-Adversarial RL
