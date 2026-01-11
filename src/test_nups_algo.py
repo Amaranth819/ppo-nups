@@ -562,7 +562,7 @@ def load_trainer(params):
         json_params = json.load(open(params["config_path"]))
 
         params = override_json_params(
-            params, json_params, excluded_params + sarsa_params + imit_params + ["statewise_attack_eps", "statewise_attack_epsisodes"]
+            params, json_params, excluded_params + sarsa_params + imit_params + ['beta'] # ["statewise_attack_eps", "statewise_attack_epsisodes"]
         )
 
     if params["sarsa_enable"]:
@@ -1000,6 +1000,10 @@ def get_parser():
         help="terminate attack early if low attack reward detected in sqlite.",
     )
 
+
+    parser.add_argument('--beta', type=float, default=50)
+
+
     parser = add_common_parser_opts(parser)
 
     return parser
@@ -1026,6 +1030,7 @@ def test_tensor_eps_in_autolirpa():
 
 if __name__ == "__main__":
     parser = get_parser()
+
     args = parser.parse_args()
     if args.load_model:
         assert args.config_path, (
@@ -1050,7 +1055,9 @@ if __name__ == "__main__":
 
     p, params = load_trainer(params)
 
-    beta = 1000
+    final_results = {}
+
+    beta = params['beta']
     gamma = p.params.GAMMA
     eps = p.params.ROBUST_PPO_EPS
     print(f'beta = {beta}, gamma = {gamma}, eps = {eps}')
@@ -1058,6 +1065,11 @@ if __name__ == "__main__":
     use_kl_bound = 'b1'
     max_episode_length = 1024
     num_sampled_episodes = 50
+
+    final_results['beta'] = beta
+    final_results['gamma'] = gamma
+    final_results['eps'] = eps
+    final_results['use_kl_bound'] = use_kl_bound
 
     sampled_ep_rewards = []
     sampled_ep_discounted_returns = []
@@ -1076,6 +1088,13 @@ if __name__ == "__main__":
     print(f'|A|_max = {abs_A_max}')
     print(f'D = {max_kl_div}')
 
+    final_results['abs_A_max'] = abs_A_max
+    final_results['max_kl_div'] = max_kl_div
+    final_results['sampled_ep_rewards'] = {}
+    final_results['sampled_ep_rewards']['none'] = copy.deepcopy(sampled_ep_rewards)
+    final_results['sampled_ep_discounted_returns'] = {}
+    final_results['sampled_ep_discounted_returns']['none'] = copy.deepcopy(sampled_ep_discounted_returns)
+
     # critic, random, sarsa, action
     print('Use NUPS!')
     for attack_method in ['critic', 'random', 'action']:
@@ -1088,3 +1107,13 @@ if __name__ == "__main__":
             sampled_ep_discounted_returns.append(ep_discounted_return)
         print(f'Attack method = {p.params.ATTACK_METHOD}| avg ep_reward of {num_sampled_episodes} episodes = {np.mean(sampled_ep_rewards)} +- {np.std(sampled_ep_rewards)}')
         print(f'avg ep_discounted_return of {num_sampled_episodes} episodes = {np.mean(sampled_ep_discounted_returns)} +- {np.std(sampled_ep_discounted_returns)}')
+
+        final_results['sampled_ep_rewards'][attack_method] = copy.deepcopy(sampled_ep_rewards)
+        final_results['sampled_ep_discounted_returns'][attack_method] = copy.deepcopy(sampled_ep_discounted_returns)
+
+    save_root_dir = './test_nups'
+    if not os.path.exists(save_root_dir):
+        os.makedirs(save_root_dir)
+    final_results_json_path = f'{p.params.GAME}_{params["exp_id"]}_klbound={use_kl_bound}_beta={beta}'
+    with open(os.path.join(save_root_dir, f'{final_results_json_path}.json'), 'w') as json_file:
+        json.dump(final_results, json_file, indent=4) # 'indent=4' makes the file human-readable
