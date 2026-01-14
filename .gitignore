@@ -1,3 +1,7 @@
 assets/
 exps/
 statewise_attack/
+cvxtorch/
+test_nups_*/
+*exps.zip
+*.sh
