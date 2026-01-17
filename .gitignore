@@ -5,3 +5,4 @@ cvxtorch/
 test_nups_*/
 *exps.zip
 *.sh
+plots/

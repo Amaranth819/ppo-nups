@@ -25,6 +25,9 @@ from multiprocessing import Process, Queue
 from .custom_env import Env
 from .convex_relaxation import get_kl_bound as get_state_kl_bound
 
+import cvxpy as cp
+# from .gp_solver import NUPS_GPSolverNumpy
+
 
 boundedmodule_device = 'cuda'
 
@@ -1444,167 +1447,31 @@ class Trainer():
 
 
 
+class NUPS_GPSolverNumpy(object):
+    def __init__(self, n, eps):
+        self.eps = eps
+
+        # Set up the problem, and we should guarantee that the problem is DGP. Here y = 1/omega !
+        self.y = cp.Variable(n, pos = True)
+        self.F = cp.Parameter(shape = (n, n), pos = True)
+        self.F.value = np.eye(n) + 1e-4
+        self.D = cp.Parameter(pos = True)
+        obj = cp.prod(self.y ** (-1 / n))
+        obj = cp.Minimize(obj)
+        constraint = eps**2 / (2 * self.D) * cp.sum(cp.multiply(self.y, self.F @ self.y)) <= 1
+        self.prob = cp.Problem(obj, [constraint])
+
+        assert self.prob.is_dgp()
 
 
-
-
-
-
-
-
-def calculate_total_discounted_return(ep_reward_list, gamma):
-    polys = np.arange(len(ep_reward_list))
-    return np.sum(gamma**polys * np.array(ep_reward_list))
-
-
-
-def calculate_max_kl_div(
-    gamma,
-    beta,
-    abs_A_max, 
-    use_which_bound = 'b1'
-):
-    if use_which_bound == 'b1':
-        return ((1 - gamma) * beta / abs_A_max)**2 / 2
-    elif use_which_bound == 'b2':
-        return ((1 - gamma) * (np.sqrt(1 + 4*gamma*beta/abs_A_max) - 1) / gamma)**2 / 8
-    else:
-        raise NotImplementedError
-    
-
-
-def method1(u, n, eps, D):
-    omegas_vals = torch.zeros_like(u)
-    for idx in range(n):
-        omegas_vals[..., idx] = n * eps / np.sqrt(2 * D) * u[..., idx]
-    return omegas_vals
-
-
-def method2(F, n, eps, D, tol = 1e-4):
-    F = torch.abs(F)
-    # eigenvalues, eigenvectors = torch.linalg.eigh(F)
-    # mask = eigenvalues > 1e-4
-    # valid_eigenvalues = eigenvalues[mask]
-    # valid_eigenvectors = eigenvectors[:, mask]
-    # Q = valid_eigenvectors @ torch.diag(torch.sqrt(valid_eigenvalues))
-
-    Q = torch.cholesky_solve(F)
-    print(Q)
-
-    C = 2 * D / (n * eps**2)
-    S = torch.ones(size = (Q.size(-1),), dtype = torch.float32, device = Q.device)
-    eye = torch.eye(Q.size(-1), dtype = torch.float32, device = Q.device)
-    
-    # S.requires_grad_(True)
-    # optim = torch.optim.Adam([S], lr = 1e-3)
-    
-    # diff = 1e6
-    # counter = 0
-    # while diff > tol:
-    #     # pred_S = C * Q.T @ (1 / (Q @ S))
-    #     # loss = torch.mean(torch.abs(S - pred_S))
-    #     # optim.zero_grad()
-    #     # loss.backward()
-    #     # optim.step()
-    #     # diff = loss.item()
-    #     # counter += 1
-
-    #     print(counter, diff)
-    #     print(S)
-    #     print(pred_S)
-    #     if counter >= 1:
-    #         break
-
-    max_iter = 100
-    for it in range(max_iter):
-        QS = Q @ S                       # (n,)
-        if torch.any(QS <= 0):
-            raise RuntimeError("Encountered non-positive QS")
-
-        inv_QS = 1.0 / QS                # (n,)
-        F = S - C * (Q.T @ inv_QS)       # (m,)
-
-        # Convergence check
-        if torch.norm(F) / torch.norm(S) < tol:
-            break
-
-        # Jacobian: J = I + c Q^T diag(1/(QS)^2) Q
-        W = inv_QS ** 2                  # (n,)
-        J = eye + C * (Q.T * W) @ Q      # (m, m)
-
-        # Newton step
-        delta = torch.linalg.solve(J, F)
-        damping = 1.0
-        S = S - damping * delta
-
-        # Enforce positivity (numerical safety)
-        S = torch.clamp(S, min=1e-12)
-
-    # Recover omega
-    omega_vals = (n * eps ** 2 / (2 * D)) * (Q @ S)
-    return omega_vals
-
-
-def method3():
-    # Use cvxtorch
-    pass
-
-
-def calculate_nups(
-    p : Trainer,
-    state : torch.Tensor, 
-    D : float, # D = calculate_max_kl_div(gamma, beta, abs_A_max, which_kl_bound)
-    num_sampled_actions = 1
-):
-    # Constants
-    eps = p.params.ROBUST_PPO_EPS
-    n = p.params.NUM_FEATURES
-    
-    state.requires_grad_(True)
-    mean, std = p.policy_model(state)
-    pd = torch.distributions.Normal(mean, std)
-
-    if num_sampled_actions == 1:
-        selected_action = pd.sample()
-        log_prob = pd.log_prob(selected_action).sum(-1).mean()
-
-        if state.grad is not None:
-            state.grad.zero_()
-        # print(state)
-        # print(log_prob)
-        grads = torch.autograd.grad(log_prob, state, retain_graph = False)[0]
-        u = torch.abs(grads)
-        omega_vals = method1(u, n, eps, D)
-        new_eps = eps / omega_vals
-    elif num_sampled_actions > 1:
-        # F = torch.zeros(size = (n, n), dtype = torch.float32, device = select_state.device)
-
-        # num_sampled_actions = 10
-        # for _ in range(num_sampled_actions):
-        #     selected_action = pd.sample()
-        #     log_prob = pd.log_prob(selected_action).sum()
-        #     if select_state.grad is not None:
-        #         select_state.grad.zero_()
-        #     grads = torch.autograd.grad(log_prob, select_state, retain_graph = True)[0]
-        #     F.add_(torch.outer(grads, grads))
-        # F.divide_(num_sampled_actions)
-        # # print(F)
-
-        # print('Sample multiple actions')
-        # print('original_eps=', eps)
-        # print('new_eps_1=', method2(F, n, eps, D1))
-        # print('new_eps_2=', method2(F, n, eps, D2))
-        raise NotImplementedError
-    else:
-        raise NotImplementedError
-    
-    # print('num_sampled_actions=', num_sampled_actions)
-    # print('original_eps=', eps)
-    # print('new_eps=', new_eps)
-
-    state.requires_grad_(False)
-
-    return new_eps
+    def solve(self, F_val : np.ndarray, D_val : float):
+        self.F.value = F_val
+        self.D.value = D_val
+        self.prob.solve(gp = True, solver = cp.SCS, eps_abs = 1e-5, eps_rel = 1e-5)
+        y_val = self.y.value
+        omega_val = 1 / y_val
+        nups_eps_val = self.eps / omega_val
+        return nups_eps_val, omega_val
 
 
 
@@ -1612,6 +1479,8 @@ def calculate_nups(
 class TrainerWithNUPS(Trainer):
     def __init__(self, policy_net_class, value_net_class, params, store, advanced_logging=True, log_every=5):
         super().__init__(policy_net_class, value_net_class, params, store, advanced_logging, log_every)
+
+        self.nups_solver = NUPS_GPSolverNumpy(n = self.params.NUM_FEATURES, eps = self.params.ROBUST_PPO_EPS)
 
 
     @staticmethod
@@ -1959,7 +1828,7 @@ class TrainerWithNUPS(Trainer):
             
             if attack_with_nups:
                 assert max_kl_div > 0
-                nups_eps = calculate_nups(self, last_states, max_kl_div, num_sampled_actions = 1)
+                nups_eps = calculate_nups(self, last_states, max_kl_div, num_sampled_actions = 3)
                 maybe_attacked_last_states = self.apply_attack(last_states, nups_eps)
             else:
                 maybe_attacked_last_states = last_states
@@ -2100,3 +1969,144 @@ class TrainerWithNUPS(Trainer):
         kl_upper_bound = float("nan")
         # Unroll the trajectories (actors, T, ...) -> (actors*T, ...)
         return ep_length, ep_reward, actions.detach().cpu().numpy(), action_means.detach().cpu().numpy(), states.detach().cpu().numpy(), kl_upper_bound, advantages.detach().cpu(), ep_discounted_return
+    
+
+
+def calculate_total_discounted_return(ep_reward_list, gamma):
+    polys = np.arange(len(ep_reward_list))
+    return np.sum(gamma**polys * np.array(ep_reward_list))
+
+
+
+def calculate_max_kl_div(
+    gamma,
+    beta,
+    abs_A_max, 
+    use_which_bound = 'b1'
+):
+    if use_which_bound == 'b1':
+        return ((1 - gamma) * beta / abs_A_max)**2 / 2
+    elif use_which_bound == 'b2':
+        return ((1 - gamma) * (np.sqrt(1 + 4*gamma*beta/abs_A_max) - 1) / gamma)**2 / 8
+    else:
+        raise NotImplementedError
+    
+
+
+def method1(u, n, eps, D):
+    omegas_vals = torch.zeros_like(u)
+    for idx in range(n):
+        omegas_vals[..., idx] = n * eps / np.sqrt(2 * D) * u[..., idx]
+    return omegas_vals
+
+
+def method2(F, n, eps, D, tol = 1e-4):
+    F = torch.abs(F)
+    # eigenvalues, eigenvectors = torch.linalg.eigh(F)
+    # mask = eigenvalues > 1e-4
+    # valid_eigenvalues = eigenvalues[mask]
+    # valid_eigenvectors = eigenvectors[:, mask]
+    # Q = valid_eigenvectors @ torch.diag(torch.sqrt(valid_eigenvalues))
+
+    Q = torch.cholesky_solve(F)
+    print(Q)
+
+    C = 2 * D / (n * eps**2)
+    S = torch.ones(size = (Q.size(-1),), dtype = torch.float32, device = Q.device)
+    eye = torch.eye(Q.size(-1), dtype = torch.float32, device = Q.device)
+    
+    # S.requires_grad_(True)
+    # optim = torch.optim.Adam([S], lr = 1e-3)
+    
+    # diff = 1e6
+    # counter = 0
+    # while diff > tol:
+    #     # pred_S = C * Q.T @ (1 / (Q @ S))
+    #     # loss = torch.mean(torch.abs(S - pred_S))
+    #     # optim.zero_grad()
+    #     # loss.backward()
+    #     # optim.step()
+    #     # diff = loss.item()
+    #     # counter += 1
+
+    #     print(counter, diff)
+    #     print(S)
+    #     print(pred_S)
+    #     if counter >= 1:
+    #         break
+
+    max_iter = 100
+    for it in range(max_iter):
+        QS = Q @ S                       # (n,)
+        if torch.any(QS <= 0):
+            raise RuntimeError("Encountered non-positive QS")
+
+        inv_QS = 1.0 / QS                # (n,)
+        F = S - C * (Q.T @ inv_QS)       # (m,)
+
+        # Convergence check
+        if torch.norm(F) / torch.norm(S) < tol:
+            break
+
+        # Jacobian: J = I + c Q^T diag(1/(QS)^2) Q
+        W = inv_QS ** 2                  # (n,)
+        J = eye + C * (Q.T * W) @ Q      # (m, m)
+
+        # Newton step
+        delta = torch.linalg.solve(J, F)
+        damping = 1.0
+        S = S - damping * delta
+
+        # Enforce positivity (numerical safety)
+        S = torch.clamp(S, min=1e-12)
+
+    # Recover omega
+    omega_vals = (n * eps ** 2 / (2 * D)) * (Q @ S)
+    return omega_vals
+
+
+
+def calculate_nups(
+    p : TrainerWithNUPS,
+    state : torch.Tensor, 
+    D : float, # D = calculate_max_kl_div(gamma, beta, abs_A_max, which_kl_bound)
+    num_sampled_actions = 1
+):
+    # Constants
+    eps = p.params.ROBUST_PPO_EPS
+    n = p.params.NUM_FEATURES
+    
+    state.requires_grad_(True)
+
+    # Current numpy solver does not support batch operation. The torch solver does support but is slow.
+    assert state.size(0) == 1
+
+    mean, std = p.policy_model(state)
+    pd = torch.distributions.Normal(mean, std)
+
+    # if num_sampled_actions == 1:
+    F = np.zeros(shape = (n, n))
+    for _ in range(num_sampled_actions):
+        selected_action = pd.sample()
+        log_prob = pd.log_prob(selected_action).sum(-1).mean()
+
+        if state.grad is not None:
+            state.grad.zero_()
+        grads = torch.autograd.grad(log_prob, state, retain_graph = True)[0]
+        
+        # u = torch.abs(grads)
+        # omega_vals = method1(u, n, eps, D)
+        # new_eps = eps / omega_vals
+
+        # Test cvxpy solver
+        grads = grads.squeeze(0).detach().cpu().numpy()
+        F += np.outer(grads, grads)
+    
+    F = np.abs(F) / num_sampled_actions
+    new_eps, omega_vals = p.nups_solver.solve(F, D)
+    new_eps = torch.from_numpy(new_eps).to(state.device).float().unsqueeze(0)
+
+
+    state.requires_grad_(False)
+
+    return new_eps

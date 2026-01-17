@@ -73,7 +73,9 @@ def load_trainer(params):
         json_params = json.load(open(params["config_path"]))
 
         params = override_json_params(
-            params, json_params, excluded_params + sarsa_params + imit_params + ['beta', 'save_root_dir', 'use_kl_bound'] # ["statewise_attack_eps", "statewise_attack_epsisodes"]
+            params, 
+            json_params, 
+            excluded_params + sarsa_params + imit_params + ['beta', 'save_root_dir', 'use_kl_bound', 'num_sampled_episodes'] # ["statewise_attack_eps", "statewise_attack_epsisodes"]
         )
 
     if params["sarsa_enable"]:
@@ -258,6 +260,7 @@ def get_parser():
     parser.add_argument('--beta', type=float, default=50)
     parser.add_argument('--save_root_dir', type=str, default='./test_nups_robust_ppo_sgld_b1')
     parser.add_argument('--use_kl_bound', type=str, default='b1')
+    parser.add_argument('--num_sampled_episodes', type=int, default=10)
 
     parser = add_common_parser_opts(parser)
 
@@ -321,12 +324,15 @@ def main():
     save_root_dir = params['save_root_dir']
     assert use_kl_bound in ['b1', 'b2']
     max_episode_length = 1024
-    num_sampled_episodes = 10
+    num_sampled_episodes = params['num_sampled_episodes']
 
     final_results['beta'] = beta
     final_results['gamma'] = gamma
     final_results['eps'] = eps
     final_results['use_kl_bound'] = use_kl_bound
+
+    if not os.path.exists(save_root_dir):
+        os.makedirs(save_root_dir)
 
     sampled_ep_rewards = []
     sampled_ep_discounted_returns = []
@@ -368,9 +374,7 @@ def main():
         final_results['sampled_ep_rewards'][attack_method] = copy.deepcopy(sampled_ep_rewards)
         final_results['sampled_ep_discounted_returns'][attack_method] = copy.deepcopy(sampled_ep_discounted_returns)
 
-    
-    if not os.path.exists(save_root_dir):
-        os.makedirs(save_root_dir)
+
     final_results_json_path = f'{p.params.GAME}_{params["exp_id"]}_klbound={use_kl_bound}_beta={beta}'
     with open(os.path.join(save_root_dir, f'{final_results_json_path}.json'), 'w') as json_file:
         json.dump(final_results, json_file, indent=4) # 'indent=4' makes the file human-readable
@@ -388,8 +392,8 @@ def print_nups_res(root_dir = './test_nups_b1/', kl_bound = 'b1'):
     for env in envs:
         for beta in betas:
             json_file_paths = glob.glob(os.path.join(root_dir, f'{env}*klbound={kl_bound}_beta={beta}.json'))
-            if json_file_paths == 0:
-                raise ValueError
+            if len(json_file_paths) == 0:
+                continue
             all_rewards = defaultdict(lambda: [])
             all_d_returns = defaultdict(lambda: [])
             for p in json_file_paths:
@@ -438,19 +442,21 @@ def generate_nups_task_scripts(
     algos = ['robust_ppo_convex', 'robust_ppo_sgld', 'vanilla_ppo'],
     betas = [10, 25, 50, 100, 200, 400, 800],
     target_sh_name = 'test_nups_algo.sh',
-    root_dir = 'exps'
+    root_dir = 'exps',
+    envs = ['Hopper-v5', 'HalfCheetah-v5', 'Walker2d-v5'][:1]
 ):
-    envs = {
-        'hopper' : 'Hopper-v5', 
-        'halfcheetah' : 'HalfCheetah-v5', 
-        'walker' : 'Walker2d-v5'
+    envs_game_to_json = {
+        'Hopper-v5' : 'hopper', 
+        'HalfCheetah-v5' : 'halfcheetah', 
+        'Walker2d-v5' : 'walker'
     }
 
     all_tasks = []
 
     for algo in algos:
-        for json_env, game_env in envs.items():
+        for game_env in envs:
             # print(json_env)
+            json_env = envs_game_to_json[game_env]
             env_algo_root_path = os.path.join(root_dir, game_env, algo, 'agents')
             for exp_id in os.listdir(env_algo_root_path):
                 if os.path.isdir(os.path.join(env_algo_root_path, exp_id)):
@@ -473,13 +479,13 @@ if __name__ == "__main__":
 
 
     # generate_nups_task_scripts(
-    #     algos = ['robust_ppo_convex', 'robust_ppo_sgld'],
+    #     algos = ['vanilla_ppo'],
     #     betas = [10, 25, 50, 100, 200, 400, 800],
-    #     target_sh_name = 'test_nups_robust_ppo.sh',
+    #     target_sh_name = 'test_nups_vanilla_ppo.sh',
     #     root_dir = 'exps'
     # )
 
     # main()
 
-    root_dir = './test_nups_robust_ppo_convex_b1/'
-    print_nups_res(root_dir, root_dir[-3:-1])
+    root_dir = './test_nups_vanilla_ppo_b1_cvxpy_3actions/'
+    print_nups_res(root_dir, 'b1')
