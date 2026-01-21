@@ -1828,7 +1828,10 @@ class TrainerWithNUPS(Trainer):
             
             if attack_with_nups:
                 assert max_kl_div > 0
-                nups_eps = calculate_nups(self, last_states, max_kl_div, num_sampled_actions = 3)
+                nups_eps = calculate_nups(
+                    self, last_states, max_kl_div, 
+                    num_sampled_actions = 1, solver = 'approx'
+                )
                 maybe_attacked_last_states = self.apply_attack(last_states, nups_eps)
             else:
                 maybe_attacked_last_states = last_states
@@ -1921,14 +1924,27 @@ class TrainerWithNUPS(Trainer):
         not_dones = not_dones[0][:t+1]
 
         values = self.val_model(states).squeeze(-1)
-        advantages, returns = self.advantage_and_return(
-            rewards = rewards.unsqueeze(0), 
-            values = values.unsqueeze(0), 
-            not_dones = not_dones.unsqueeze(0)
-        )
-        advantages = advantages.squeeze(0)
+
+        # # GAE-based advantage
+        # advantages, returns = self.advantage_and_return(
+        #     rewards = rewards.unsqueeze(0), 
+        #     values = values.unsqueeze(0), 
+        #     not_dones = not_dones.unsqueeze(0)
+        # )
+        # advantages = advantages.squeeze(0).detach()
+
+        # Td-error based advantage
+        advantages = rewards[:-1] + self.GAMMA * values[1:] - values[:-1]
+        advantages = advantages.detach()
 
         ep_discounted_return = calculate_total_discounted_return(ep_step_rewards, self.params.GAMMA)
+
+        # abs_advs = advantages.abs()
+        # len_traj = advantages.size(0)
+        # adv_bound_1 = torch.logical_and(abs_advs > 0, abs_advs <= 1).sum().item()
+        # adv_bound_2 = torch.logical_and(abs_advs > 1, abs_advs <= 2).sum().item()
+        # adv_bound_3 = torch.logical_and(abs_advs > 2, abs_advs <= 3).sum().item()
+        # print(f'|A|_max={advantages.abs().max().item():.4f} | ep_rewards={ep_reward:.4f} | ep_d_return={ep_discounted_return:.4f}', f'0~1: {adv_bound_1 / len_traj:.4f}% | 1~2: {adv_bound_2 / len_traj:.4f}% | 2~3: {adv_bound_3 / len_traj:.4f}%')
 
         to_ret = (ep_length, ep_reward, actions, action_means, states, advantages, ep_discounted_return)
         
@@ -2070,7 +2086,8 @@ def calculate_nups(
     p : TrainerWithNUPS,
     state : torch.Tensor, 
     D : float, # D = calculate_max_kl_div(gamma, beta, abs_A_max, which_kl_bound)
-    num_sampled_actions = 1
+    num_sampled_actions = 1,
+    solver = 'approx'
 ):
     # Constants
     eps = p.params.ROBUST_PPO_EPS
@@ -2084,27 +2101,36 @@ def calculate_nups(
     mean, std = p.policy_model(state)
     pd = torch.distributions.Normal(mean, std)
 
-    # if num_sampled_actions == 1:
-    F = np.zeros(shape = (n, n))
-    for _ in range(num_sampled_actions):
+    if solver == 'approx':
+        assert num_sampled_actions == 1
         selected_action = pd.sample()
         log_prob = pd.log_prob(selected_action).sum(-1).mean()
 
         if state.grad is not None:
             state.grad.zero_()
-        grads = torch.autograd.grad(log_prob, state, retain_graph = True)[0]
-        
-        # u = torch.abs(grads)
-        # omega_vals = method1(u, n, eps, D)
-        # new_eps = eps / omega_vals
+        grads = torch.autograd.grad(log_prob, state, retain_graph = False)[0]
+        u = torch.abs(grads)
+        omega_vals = method1(u, n, eps, D)
+        new_eps = eps / omega_vals
 
-        # Test cvxpy solver
-        grads = grads.squeeze(0).detach().cpu().numpy()
-        F += np.outer(grads, grads)
+    elif solver == 'cvxpy':
+        F = np.zeros(shape = (n, n))
+        for _ in range(num_sampled_actions):
+            selected_action = pd.sample()
+            log_prob = pd.log_prob(selected_action).sum(-1).mean()
+
+            if state.grad is not None:
+                state.grad.zero_()
+            grads = torch.autograd.grad(log_prob, state, retain_graph = True)[0]
+            grads = grads.squeeze(0).detach().cpu().numpy()
+            F += np.outer(grads, grads)
+        
+        F = np.abs(F) / num_sampled_actions
+        new_eps, omega_vals = p.nups_solver.solve(F, D)
+        new_eps = torch.from_numpy(new_eps).to(state.device).float().unsqueeze(0)
     
-    F = np.abs(F) / num_sampled_actions
-    new_eps, omega_vals = p.nups_solver.solve(F, D)
-    new_eps = torch.from_numpy(new_eps).to(state.device).float().unsqueeze(0)
+    else:
+        raise NotImplementedError(solver)
 
 
     state.requires_grad_(False)

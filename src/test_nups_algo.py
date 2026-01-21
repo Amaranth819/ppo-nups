@@ -358,30 +358,40 @@ def main():
     final_results['sampled_ep_discounted_returns'] = {}
     final_results['sampled_ep_discounted_returns']['none'] = copy.deepcopy(sampled_ep_discounted_returns)
 
-    # critic, random, sarsa, action
-    print('Use NUPS!')
-    for attack_method in ['critic', 'random', 'action']:
-        p.params.ATTACK_METHOD = attack_method
-        sampled_ep_rewards = []
-        sampled_ep_discounted_returns = []
-        for _ in range(num_sampled_episodes):
-            ep_length, ep_reward, actions, action_means, states, kl_upper_bound, advantages, ep_discounted_return = p.run_test(max_episode_length, attack_with_nups = True, max_kl_div = max_kl_div)
-            sampled_ep_rewards.append(ep_reward)
-            sampled_ep_discounted_returns.append(ep_discounted_return)
-        print(f'Attack method = {p.params.ATTACK_METHOD}| avg ep_reward of {num_sampled_episodes} episodes = {np.mean(sampled_ep_rewards)} +- {np.std(sampled_ep_rewards)}')
-        print(f'avg ep_discounted_return of {num_sampled_episodes} episodes = {np.mean(sampled_ep_discounted_returns)} +- {np.std(sampled_ep_discounted_returns)}')
+    # # critic, random, sarsa, action
+    # print('Use NUPS!')
+    # for attack_method in ['critic', 'random', 'action']:
+    #     p.params.ATTACK_METHOD = attack_method
+    #     sampled_ep_rewards = []
+    #     sampled_ep_discounted_returns = []
+    #     for _ in range(num_sampled_episodes):
+    #         ep_length, ep_reward, actions, action_means, states, kl_upper_bound, advantages, ep_discounted_return = p.run_test(max_episode_length, attack_with_nups = True, max_kl_div = max_kl_div)
+    #         sampled_ep_rewards.append(ep_reward)
+    #         sampled_ep_discounted_returns.append(ep_discounted_return)
+    #     print(f'Attack method = {p.params.ATTACK_METHOD}')
+    #     print(f'avg ep_reward of {num_sampled_episodes} episodes = {np.mean(sampled_ep_rewards)} +- {np.std(sampled_ep_rewards)}')
+    #     final_results['sampled_ep_rewards'][attack_method] = copy.deepcopy(sampled_ep_rewards)
 
-        final_results['sampled_ep_rewards'][attack_method] = copy.deepcopy(sampled_ep_rewards)
-        final_results['sampled_ep_discounted_returns'][attack_method] = copy.deepcopy(sampled_ep_discounted_returns)
+    #     print(f'avg ep_discounted_return of {num_sampled_episodes} episodes = {np.mean(sampled_ep_discounted_returns)} +- {np.std(sampled_ep_discounted_returns)}')
+    #     final_results['sampled_ep_discounted_returns'][attack_method] = copy.deepcopy(sampled_ep_discounted_returns)
+
+    #     expected_performance_drop = advantages.mean().item() / (1-gamma)
+    #     print(advantages.mean().item())
+    #     print(f'E[A(s_t,a_t)]/(1-\gamma) = {expected_performance_drop}')
 
 
-    final_results_json_path = f'{p.params.GAME}_{params["exp_id"]}_klbound={use_kl_bound}_beta={beta}'
-    with open(os.path.join(save_root_dir, f'{final_results_json_path}.json'), 'w') as json_file:
-        json.dump(final_results, json_file, indent=4) # 'indent=4' makes the file human-readable
+    # final_results_json_path = f'{p.params.GAME}_{params["exp_id"]}_klbound={use_kl_bound}_beta={beta}'
+    # with open(os.path.join(save_root_dir, f'{final_results_json_path}.json'), 'w') as json_file:
+    #     json.dump(final_results, json_file, indent=4) # 'indent=4' makes the file human-readable
 
 
 
-def print_nups_res(root_dir = './test_nups_b1/', kl_bound = 'b1'):
+def print_nups_res(
+    root_dir = './test_nups_b1/', 
+    kl_bound = 'b1',
+    plot_total_rewards = False,
+    plot_discounted_returns = True,
+):
     envs = ['Hopper-v5', 'HalfCheetah-v5', 'Walker2d-v5']
     betas = [10.0, 25.0, 50.0, 100.0, 200.0, 400.0, 800.0]
     attack_methods = ['none', 'random', 'critic', 'action']
@@ -403,37 +413,39 @@ def print_nups_res(root_dir = './test_nups_b1/', kl_bound = 'b1'):
                         all_rewards[atk].extend(data['sampled_ep_rewards'][atk])
                         all_d_returns[atk].extend(data['sampled_ep_discounted_returns'][atk])
             
-            rewards_table['Env'].append(env)
-            rewards_table['Beta'].append(f'{int(beta):d}')
-            for atk in attack_methods:
-                rewards_mean, rewards_std = np.mean(all_rewards[atk]).astype(int), np.std(all_rewards[atk]).astype(int)
+            if plot_total_rewards:
+                rewards_table['Env'].append(env)
+                rewards_table['Beta'].append(f'{int(beta):d}')
+                for atk in attack_methods:
+                    rewards_mean, rewards_std = np.mean(all_rewards[atk]).astype(int), np.std(all_rewards[atk]).astype(int)
 
-                # no attack rewards
-                no_attack_rewards_mean = np.mean(all_rewards['none']).astype(int)
-                diff = rewards_mean - no_attack_rewards_mean
+                    # no attack rewards
+                    no_attack_rewards_mean = np.mean(all_rewards['none']).astype(int)
+                    diff = rewards_mean - no_attack_rewards_mean
 
-                rewards_table[atk].append(f'{rewards_mean:d} $\pm$ {rewards_std:d} ({diff:d})')
+                    rewards_table[atk].append(f'{rewards_mean:d} $\pm$ {rewards_std:d} ({diff:d})')
 
 
+            if plot_discounted_returns:
+                d_returns_table['Env'].append(env)
+                d_returns_table['Beta'].append(f'{int(beta):d}')
+                for atk in attack_methods:
+                    d_returns_mean, d_returns_std = np.mean(all_d_returns[atk]).astype(int), np.std(all_d_returns[atk]).astype(int)
 
-            d_returns_table['Env'].append(env)
-            d_returns_table['Beta'].append(f'{int(beta):d}')
-            for atk in attack_methods:
-                d_returns_mean, d_returns_std = np.mean(all_d_returns[atk]).astype(int), np.std(all_d_returns[atk]).astype(int)
+                    # no attack returns
+                    no_attack_d_returns_mean = np.mean(all_d_returns['none']).astype(int)
+                    diff = d_returns_mean - no_attack_d_returns_mean
 
-                # no attack returns
-                no_attack_d_returns_mean = np.mean(all_d_returns['none']).astype(int)
-                diff = d_returns_mean - no_attack_d_returns_mean
+                    d_returns_table[atk].append(f'{d_returns_mean:d} $\pm$ {d_returns_std:d} ({diff:d})')
 
-                d_returns_table[atk].append(f'{d_returns_mean:d} $\pm$ {d_returns_std:d} ({diff:d})')
+    if plot_total_rewards:
+        rewards_table = pd.DataFrame(dict(rewards_table))
+        print(rewards_table.to_latex(index = False, caption = 'Total rewards $\sum_t R(s_t,a_t)$'))
+        print()
 
-    
-    rewards_table = pd.DataFrame(dict(rewards_table))
-    d_returns_table = pd.DataFrame(dict(d_returns_table))
-
-    print(rewards_table.to_latex(index = False))
-    print()
-    print(d_returns_table.to_latex(index = False))
+    if plot_discounted_returns:
+        d_returns_table = pd.DataFrame(dict(d_returns_table))
+        print(d_returns_table.to_latex(index = False, caption = 'Discounted returns $\sum_t \gamma^t R(s_t,a_t)$'))
 
 
 
@@ -443,7 +455,7 @@ def generate_nups_task_scripts(
     betas = [10, 25, 50, 100, 200, 400, 800],
     target_sh_name = 'test_nups_algo.sh',
     root_dir = 'exps',
-    envs = ['Hopper-v5', 'HalfCheetah-v5', 'Walker2d-v5'][:1]
+    envs = ['Hopper-v5', 'HalfCheetah-v5', 'Walker2d-v5']
 ):
     envs_game_to_json = {
         'Hopper-v5' : 'hopper', 
@@ -482,10 +494,11 @@ if __name__ == "__main__":
     #     algos = ['vanilla_ppo'],
     #     betas = [10, 25, 50, 100, 200, 400, 800],
     #     target_sh_name = 'test_nups_vanilla_ppo.sh',
-    #     root_dir = 'exps'
+    #     root_dir = 'exps',
+    #     envs = ['Hopper-v5', 'HalfCheetah-v5', 'Walker2d-v5'][1:]
     # )
 
-    # main()
+    main()
 
-    root_dir = './test_nups_vanilla_ppo_b1_cvxpy_3actions/'
-    print_nups_res(root_dir, 'b1')
+    # root_dir = './test_nups_vanilla_ppo_b1_approx_tdadv/'
+    # print_nups_res(root_dir, 'b1')
