@@ -358,31 +358,31 @@ def main():
     final_results['sampled_ep_discounted_returns'] = {}
     final_results['sampled_ep_discounted_returns']['none'] = copy.deepcopy(sampled_ep_discounted_returns)
 
-    # # critic, random, sarsa, action
-    # print('Use NUPS!')
-    # for attack_method in ['critic', 'random', 'action']:
-    #     p.params.ATTACK_METHOD = attack_method
-    #     sampled_ep_rewards = []
-    #     sampled_ep_discounted_returns = []
-    #     for _ in range(num_sampled_episodes):
-    #         ep_length, ep_reward, actions, action_means, states, kl_upper_bound, advantages, ep_discounted_return = p.run_test(max_episode_length, attack_with_nups = True, max_kl_div = max_kl_div)
-    #         sampled_ep_rewards.append(ep_reward)
-    #         sampled_ep_discounted_returns.append(ep_discounted_return)
-    #     print(f'Attack method = {p.params.ATTACK_METHOD}')
-    #     print(f'avg ep_reward of {num_sampled_episodes} episodes = {np.mean(sampled_ep_rewards)} +- {np.std(sampled_ep_rewards)}')
-    #     final_results['sampled_ep_rewards'][attack_method] = copy.deepcopy(sampled_ep_rewards)
+    # critic, random, sarsa, action
+    print('Use NUPS!')
+    for attack_method in ['critic', 'random', 'action']:
+        p.params.ATTACK_METHOD = attack_method
+        sampled_ep_rewards = []
+        sampled_ep_discounted_returns = []
+        for _ in range(num_sampled_episodes):
+            ep_length, ep_reward, actions, action_means, states, kl_upper_bound, advantages, ep_discounted_return = p.run_test(max_episode_length, attack_with_nups = True, max_kl_div = max_kl_div)
+            sampled_ep_rewards.append(ep_reward)
+            sampled_ep_discounted_returns.append(ep_discounted_return)
+        print(f'Attack method = {p.params.ATTACK_METHOD}')
+        print(f'avg ep_reward of {num_sampled_episodes} episodes = {np.mean(sampled_ep_rewards)} +- {np.std(sampled_ep_rewards)}')
+        final_results['sampled_ep_rewards'][attack_method] = copy.deepcopy(sampled_ep_rewards)
 
-    #     print(f'avg ep_discounted_return of {num_sampled_episodes} episodes = {np.mean(sampled_ep_discounted_returns)} +- {np.std(sampled_ep_discounted_returns)}')
-    #     final_results['sampled_ep_discounted_returns'][attack_method] = copy.deepcopy(sampled_ep_discounted_returns)
+        print(f'avg ep_discounted_return of {num_sampled_episodes} episodes = {np.mean(sampled_ep_discounted_returns)} +- {np.std(sampled_ep_discounted_returns)}')
+        final_results['sampled_ep_discounted_returns'][attack_method] = copy.deepcopy(sampled_ep_discounted_returns)
 
-    #     expected_performance_drop = advantages.mean().item() / (1-gamma)
-    #     print(advantages.mean().item())
-    #     print(f'E[A(s_t,a_t)]/(1-\gamma) = {expected_performance_drop}')
+        expected_performance_drop = advantages.mean().item() / (1-gamma)
+        print(advantages.mean().item())
+        print(f'E[A(s_t,a_t)]/(1-\gamma) = {expected_performance_drop}')
 
 
-    # final_results_json_path = f'{p.params.GAME}_{params["exp_id"]}_klbound={use_kl_bound}_beta={beta}'
-    # with open(os.path.join(save_root_dir, f'{final_results_json_path}.json'), 'w') as json_file:
-    #     json.dump(final_results, json_file, indent=4) # 'indent=4' makes the file human-readable
+    final_results_json_path = f'{p.params.GAME}_{params["exp_id"]}_klbound={use_kl_bound}_beta={beta}'
+    with open(os.path.join(save_root_dir, f'{final_results_json_path}.json'), 'w') as json_file:
+        json.dump(final_results, json_file, indent=4) # 'indent=4' makes the file human-readable
 
 
 

@@ -1251,8 +1251,8 @@ class Trainer():
         last_states = states[:, 0, :]
         
         for t in iterator:
-            if (t+1) % 100 == 0:
-                print('Step {} '.format(t+1))
+            # if (t+1) % 100 == 0:
+            #     print('Step {} '.format(t+1))
             # assert shape_equal([self.NUM_ACTORS, self.NUM_FEATURES], last_states)
             # Retrieve probabilities 
             # action_pds: (# actors, # actions), prob dists over actions
@@ -1325,7 +1325,8 @@ class Trainer():
                 break
 
         if len(completed_episode_info) > 0:
-            ep_length, ep_reward = completed_episode_info[0]
+            # ep_length, ep_reward = completed_episode_info[0]
+            ep_length, ep_reward, ep_step_rewards = completed_episode_info[0]
         else:
             ep_length = np.nan
             ep_reward = np.nan

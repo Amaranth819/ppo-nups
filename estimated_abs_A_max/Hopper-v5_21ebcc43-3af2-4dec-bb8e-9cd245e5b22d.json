@@ -1,0 +1,10 @@
+{
+    "game": "Hopper-v5",
+    "exp_id": "21ebcc43-3af2-4dec-bb8e-9cd245e5b22d",
+    "seed": 1234,
+    "num_iterations": 3,
+    "num_sampled_actions": 32,
+    "num_elite_actions": 8,
+    "num_sampled_episodes": 20,
+    "abs_A_max": 0.21274849249837002
+}

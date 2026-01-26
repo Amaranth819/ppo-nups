@@ -145,14 +145,12 @@ class Env:
         _reward = self.reward_filter(reward)
 
         self.ep_step_rewards.append(reward)
+        info['step_reward'] = reward
 
         if is_done:
             # info['done'] = (self.counter, self.total_true_reward)
 
             info['done'] = (self.counter, self.total_true_reward, copy.deepcopy(self.ep_step_rewards))
-
             self.ep_step_rewards = []
 
         return state, _reward, is_done, info
-
-    
