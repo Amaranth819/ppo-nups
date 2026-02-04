@@ -105,6 +105,9 @@ def main(params):
             'val_opt': store.PYTORCH_STATE,
             'iteration': int,
             '5_rewards': float,
+
+            'advantage_model' : store.PYTORCH_STATE,
+            'advantage_opt' : store.PYTORCH_STATE
         }
         checkpoint_dict.update(adversary_table_dict)
         checkpoint_dict.update(worst_q_table_dict)
@@ -222,6 +225,10 @@ def main(params):
                     'policy_model': p.policy_model.state_dict(),
                     'policy_opt': p.POLICY_ADAM.state_dict(),
                     'val_opt': p.val_opt.state_dict(),
+
+                    'advantage_model' : p.advantage_model.state_dict(),
+                    'advantage_opt' : p.advantage_opt.state_dict(),
+
                     'envs': p.envs,
                     '5_rewards': final_5_rewards,
                 }
@@ -393,6 +400,10 @@ def add_common_parser_opts(parser):
     parser.add_argument('--tau', type=float)
     parser.add_argument('--weight-schedule', type=str, help='Worst q weight schedule')
     parser.add_argument('--q-weight', type=float, help='Max worst q weight in policy loss')
+
+    # Learn advantage function parameters
+    parser.add_argument('--advantage_activation', type=str, default='tanh')
+    parser.add_argument('--advantage_lr', type=str, default='same')
 
     # For grid searches only
     # parser.add_argument('--cox-experiment-path', type=str, default='')

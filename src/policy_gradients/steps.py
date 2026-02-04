@@ -1368,3 +1368,75 @@ def get_params_norm(net, p=2):
 
 last_norm = None
 
+
+
+
+
+
+def advantage_step(
+    all_states, actions, next_states, not_dones, rewards, 
+    adv_net, adv_opt, v_net, params, 
+    should_tqdm=False, should_cuda=False
+):
+    '''
+    Take an optimizer step training the advantage function
+    parameterized by a neural network
+    Inputs:
+    - all_states, the states at each timestep
+    - actions, the actions taking at each timestep
+    - next_states, the next states after taking actions
+    - not dones, N * T array with 0s at final steps and 1s everywhere else
+    - rewards, the rewards gained at each timestep
+    - adv_net, advantage neural network
+    - adv_opt, the optimizer for adv_net
+    - v_net, value neural network
+    - params, dictionary of parameters
+    Returns:
+    - Loss of the adv_net regression problem
+    '''
+
+    r = range(params.Q_EPOCHS) if not should_tqdm else \
+                            tqdm(range(params.Q_EPOCHS))
+    for i in r:
+        # Create minibatches with shuffuling
+        state_indices = np.arange(rewards.nelement())
+        np.random.shuffle(state_indices)
+        splits = np.array_split(state_indices, params.NUM_MINIBATCHES)
+
+        assert shape_equal_cmp(rewards, not_dones)
+
+        # Minibatch SGD
+        for selected in splits:
+            adv_opt.zero_grad()
+
+            def sel(*args):
+                return [v[selected] for v in args]
+
+            def to_cuda(*args):
+                return [v.cuda() for v in args]
+
+            # Get a minibatch (64).
+            tup = sel(actions, rewards, not_dones, next_states, all_states)
+
+            if should_cuda: tup = to_cuda(*tup)
+            sel_acts, sel_rews, sel_not_dones, sel_next_states, sel_states = tup
+
+            # Advantage prediction of current network given the states.
+            with ch.no_grad():
+                V_s_curr = v_net(sel_states).squeeze(-1)
+                V_s_next = v_net(sel_next_states).squeeze(-1)
+                expected_adv = sel_rews + params.GAMMA * sel_not_dones * V_s_next - V_s_curr
+
+            curr_adv = adv_net(ch.cat([sel_states, sel_acts], dim = -1)).squeeze(-1)
+
+            '''
+            print('curr_adv', curr_adv.mean())
+            print('expected_adv', expected_adv.mean())
+            '''
+            adv_loss = F.mse_loss(curr_adv, expected_adv)
+            adv_loss.backward()
+            adv_opt.step()
+
+        print(f'adv_loss={adv_loss.item():8.5f}')
+
+    return adv_loss

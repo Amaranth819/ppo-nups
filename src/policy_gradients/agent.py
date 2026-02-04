@@ -19,7 +19,7 @@ from auto_LiRPA.bounded_tensor import BoundedTensor
 from auto_LiRPA.perturbations import PerturbationLpNorm
 from .models import *
 from .torch_utils import *
-from .steps import value_step, step_with_mode, pack_history, worst_q_step
+from .steps import value_step, step_with_mode, pack_history, worst_q_step, advantage_step
 from .log import *
 
 from multiprocessing import Process, Queue
@@ -170,6 +170,14 @@ class Trainer():
             self.q_model = ValueDenseNet(self.NUM_FEATURES + self.NUM_ACTIONS, self.INITIALIZATION, activation=self.value_activation)
             self.q_opt = optim.Adam(self.q_model.parameters(), lr=self.Q_LR, eps=1e-5) 
             self.target_q_model = deepcopy(self.q_model)
+
+        # NUUS: Advantage function optimization, for quickly approximate \max_a A^\pi(s,a)
+        self.advantage_model = ValueDenseNet(self.NUM_FEATURES + self.NUM_ACTIONS, self.INITIALIZATION, activation=self.advantage_activation)
+        if self.ADVANTAGE_LR == 'same':
+            advantage_lr = self.VAL_LR
+        else:
+            advantage_lr = float(self.VAL_LR)
+        self.advantage_opt = optim.Adam(self.advantage_model.parameters(), lr=advantage_lr, eps=1e-5)
             
         # Learning rate annealing
         # From OpenAI hyperparametrs:
@@ -185,11 +193,12 @@ class Trainer():
                 qs = optim.lr_scheduler.LambdaLR(self.q_opt, lr_lambda=lam)
                 self.params.Q_SCHEDULER = qs
 
+            self.params.ADVANTAGE_SCHEDULER = optim.lr_scheduler.LambdaLR(self.advantage_opt, lr_lambda = lam)
+
         if store is not None:
             self.setup_stores(store)
         else:
             print("Not saving results to cox store.")
-
 
         # Create NUUS_solver if testing
         self.nuus_solver = None
@@ -308,7 +317,9 @@ class Trainer():
                 'final_policy_loss':float,
                 'final_surrogate_loss':float,
                 'entropy_bonus':float,
-                'mean_std':float
+                'mean_std':float,
+
+                'final_advantage_loss' : float
             }
             self.store.add_table('optimization_adv', adv_optimization_table)
         optimization_table = {
@@ -318,6 +329,8 @@ class Trainer():
             'final_surrogate_loss':float,
             'entropy_bonus':float,
             'mean_std':float,
+
+            'final_advantage_loss' : float
         }
         if self.MODE == 'robust_q_ppo':
             optimization_table.update({'final_q_loss':float})
@@ -1299,13 +1312,30 @@ class Trainer():
         if self.ANNEAL_LR and increment_scheduler:
             val_scheduler.step()
 
+
+        # Update the advantage function after the value function
+        adv_loss = ch.tensor(0.0)
+        if not self.SHARE_WEIGHTS:
+            if self.advantage_model is not None:
+                adv_loss = advantage_step(
+                    saps.states, saps.actions, saps.next_states, saps.not_dones, saps.rewards,
+                    self.advantage_model, self.advantage_opt, val_model, self.params,
+                ).mean()
+
+        if self.ANNEAL_LR and increment_scheduler:
+            self.params.ADVANTAGE_SCHEDULER.step()
+
+
         if value_only:
             # Run the value iteration only. Return now.
+            # return val_loss
             return val_loss
 
         if logging:
             self.store.log_table_and_tb('optimization'+table_name_suffix, {
-                'final_value_loss': val_loss
+                'final_value_loss': val_loss,
+
+                'final_advantage_loss' : adv_loss
             })
 
         if self.MODE == 'robust_q_ppo':
@@ -1369,15 +1399,20 @@ class Trainer():
         if self.params.MODE == 'robust_q_ppo':
             self.store['robust_q_ppo_data'].flush_row()
             if self.ANNEAL_LR:
-                print(f'val lr: {val_scheduler.get_last_lr()}, policy lr: {policy_scheduler.get_last_lr()}, q lr: {q_scheduler.get_last_lr()}')
+                # print(f'val lr: {val_scheduler.get_last_lr()}, policy lr: {policy_scheduler.get_last_lr()}, q lr: {q_scheduler.get_last_lr()}')
+                print(f'val lr: {val_scheduler.get_last_lr()}, policy lr: {policy_scheduler.get_last_lr()}, q lr: {q_scheduler.get_last_lr()}, adv lr: {self.params.ADVANTAGE_SCHEDULER.get_last_lr()}')
             val_loss = val_loss.mean().item()
             q_loss = q_loss.mean().item()
-            return policy_loss, surr_loss, entropy_bonus, val_loss, q_loss
+            # return policy_loss, surr_loss, entropy_bonus, val_loss, q_loss
+
+            adv_loss = adv_loss.mean().item()
+            return policy_loss, surr_loss, entropy_bonus, val_loss, q_loss, adv_loss
 
         if self.ANNEAL_LR:
             print(f'val lr: {val_scheduler.get_last_lr()}, policy lr: {policy_scheduler.get_last_lr()}')
         val_loss = val_loss.mean().item()
-        return policy_loss, surr_loss, entropy_bonus, val_loss
+        # return policy_loss, surr_loss, entropy_bonus, val_loss
+        return policy_loss, surr_loss, entropy_bonus, val_loss, adv_loss
 
     def train_step(self):
         if self.MODE == "adv_ppo" or self.MODE == "adv_trpo" or self.MODE == "adv_sa_ppo":
@@ -1421,11 +1456,13 @@ class Trainer():
         num_saps = self.T * self.NUM_ACTORS
         saps, avg_ep_reward, avg_ep_length = self.collect_saps(num_saps, collect_adversary_trajectory=adversary_step)
         if self.params.MODE == 'robust_q_ppo':
-            policy_loss, surr_loss, entropy_bonus, val_loss, q_loss = self.take_steps(saps, adversary_step=adversary_step, increment_scheduler=increment_scheduler)
+            # policy_loss, surr_loss, entropy_bonus, val_loss, q_loss = self.take_steps(saps, adversary_step=adversary_step, increment_scheduler=increment_scheduler)
+            policy_loss, surr_loss, entropy_bonus, val_loss, q_loss, adv_loss = self.take_steps(saps, adversary_step=adversary_step, increment_scheduler=increment_scheduler)
         else:
-            policy_loss, surr_loss, entropy_bonus, val_loss = self.take_steps(saps, adversary_step=adversary_step, increment_scheduler=increment_scheduler)
+            # policy_loss, surr_loss, entropy_bonus, val_loss = self.take_steps(saps, adversary_step=adversary_step, increment_scheduler=increment_scheduler)
+            policy_loss, surr_loss, entropy_bonus, val_loss, adv_loss = self.take_steps(saps, adversary_step=adversary_step, increment_scheduler=increment_scheduler)
         # Logging code
-        print(f"Policy Loss: {policy_loss:.5g}, | Entropy Bonus: {entropy_bonus:.5g}, | Value Loss: {val_loss:.5g}")
+        print(f"Policy Loss: {policy_loss:.5g}, | Entropy Bonus: {entropy_bonus:.5g}, | Value Loss: {val_loss:.5g}, | Advantage Loss: {adv_loss:.5g}")
         if self.params.MODE == 'robust_q_ppo':
             print(f"Worst Q Loss: {q_loss:.5g}")
         print("Time elapsed (s):", time.time() - start_time)
