@@ -23,8 +23,11 @@ logging.disable(logging.INFO)
 
 def main(params):
     override_params = copy.deepcopy(params)
-    excluded_params = ['config_path', 'out_dir_prefix', 'num_episodes', 'row_id', 'exp_id',
-            'load_model', 'seed', 'deterministic', 'noise_factor', 'compute_kl_cert', 'use_full_backward', 'sqlite_path', 'early_terminate', 'compute_worst_q', 'load_q_model']
+    excluded_params = [
+        'config_path', 'out_dir_prefix', 'num_episodes', 'row_id', 'exp_id',
+        'load_model', 'seed', 'deterministic', 'noise_factor', 'compute_kl_cert', 
+        'use_full_backward', 'sqlite_path', 'early_terminate', 'compute_worst_q', 'load_q_model'
+    ]
     sarsa_params = ['sarsa_enable', 'sarsa_steps', 'sarsa_eps', 'sarsa_reg', 'sarsa_model_path']
     imit_params =  ['imit_enable', 'imit_epochs', 'imit_model_path', 'imit_lr']
  
