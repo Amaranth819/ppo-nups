@@ -30,7 +30,7 @@
     "entropy_coeff": 0.0001,
     "fisher_frac_samples": 0.1,
     "force_stop_step": -1,
-    "game": "HalfCheetah-v2",
+    "game": "HalfCheetah-v5",
     "gamma": 0.99,
     "history_length": -1,
     "initial_std": 0.5,
@@ -42,11 +42,11 @@
     "max_kl": 0.01,
     "max_kl_final": 0.01,
     "mode": "robust_ppo",
-    "norm_rewards": "returns",
-    "norm_states": true,
+    "norm_rewards": "none",
+    "norm_states": false,
     "num_actors": 1,
     "num_minibatches": 32,
-    "out_dir": "robust_ppo_halfcheetah/agents",
+    "out_dir": "exps/halfcheetah/robust_ppo_sgld/agents",
     "policy_activation": "tanh",
     "policy_net_type": "CtsPolicy",
     "ppo_epochs": 10,
@@ -62,7 +62,7 @@
     "robust_ppo_reg": 0.1,
     "save_frames": false,
     "save_frames_path": "frames/",
-    "save_iters": 10,
+    "save_iters": 20,
     "share_weights": false,
     "show_env": false,
     "t": 2048,
@@ -80,5 +80,8 @@
     "tau": 0.001,
     "weight_schedule": "exp",
     "q_weight": 0.8,
-    "value_activation": "tanh"
+    "value_activation": "tanh",
+
+    "advantage_activation": "tanh",
+    "advantage_lr" : "same"
 }

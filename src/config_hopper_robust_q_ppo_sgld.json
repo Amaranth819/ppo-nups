@@ -25,7 +25,7 @@
     "clip_rewards": 10.0,
     "clip_val_eps": 0.2,
     "collect_perturbed_states": true,
-    "cpu": false,
+    "cpu": true,
     "damping": 0.1,
     "entropy_coeff": 0.0,
     "fisher_frac_samples": 0.1,
@@ -42,11 +42,11 @@
     "max_kl": 0.01,
     "max_kl_final": 0.01,
     "mode": "robust_q_ppo",
-    "norm_rewards": "returns",
-    "norm_states": true,
+    "norm_rewards": "none",
+    "norm_states": false,
     "num_actors": 1,
     "num_minibatches": 32,
-    "out_dir": "exp/hopper/robust_q_ppo_sgld/agents",
+    "out_dir": "exps/hopper/robust_q_ppo_sgld/agents",
     "policy_activation": "tanh",
     "value_activation": "tanh",
     "policy_net_type": "CtsPolicy",
@@ -80,5 +80,8 @@
     "q_epochs": 10,
     "tau": 0.001,
     "weight_schedule": "linear",
-    "q_weight": 0.8
+    "q_weight": 0.8,
+
+    "advantage_activation": "tanh",
+    "advantage_lr" : "same"
 }

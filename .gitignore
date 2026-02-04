@@ -1,2 +1,4 @@
 src/exps*/
 *__pycache__/
+src/run_exp_inputs/
+*.log

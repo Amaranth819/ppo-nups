@@ -1319,7 +1319,7 @@ class Trainer():
             if self.advantage_model is not None:
                 adv_loss = advantage_step(
                     saps.states, saps.actions, saps.next_states, saps.not_dones, saps.rewards,
-                    self.advantage_model, self.advantage_opt, val_model, self.params,
+                    self.advantage_model, self.advantage_opt, self.val_model, self.params,
                 ).mean()
 
         if self.ANNEAL_LR and increment_scheduler:
