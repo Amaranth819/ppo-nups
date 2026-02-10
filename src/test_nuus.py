@@ -134,9 +134,9 @@ def load_trainer(params):
     original_stdev = p.policy_model.log_stdev.clone().detach()
     if params["noise_factor"] != 1.0:
         p.policy_model.log_stdev.data[:] += np.log(params["noise_factor"])
-    # if params["deterministic"]:
-    #     # print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
-    #     p.policy_model.log_stdev.data[:] = -100
+    if params["deterministic"]:
+        # print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
+        p.policy_model.log_stdev.data[:] = -100
     # print('Gaussian noise in policy (after adjustment):')
     # print(torch.exp(p.policy_model.log_stdev))
 

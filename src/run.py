@@ -10,6 +10,7 @@ from policy_gradients import models
 import sys
 import json
 import torch
+import copy
 from cox.store import Store, schema_from_dict
 
 
@@ -38,6 +39,8 @@ class Tee(object):
         self.stream.flush()
 
 def main(params):
+    original_params = copy.deepcopy(params)
+
     for k, v in zip(params.keys(), params.values()):
         assert v is not None, f"Value for {k} is None"
 
@@ -209,7 +212,8 @@ def main(params):
 
     # Write the configuration json file to the directory
     with open(os.path.join(p.store.path, 'train.json'), 'w') as f:
-        json.dump(params, f, indent = 4)
+        json.dump(original_params, f, indent = 4)
+
 
     ret = 0
     # Try-except so that we save if the user interrupts the process

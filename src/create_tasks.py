@@ -1,6 +1,6 @@
 import os
 
-def generate_nups_task_scripts(
+def generate_nuus_task_scripts(
     algo = 'vanilla_ppo',
     env = 'Hopper-v5',
     betas = [10, 25, 50, 100, 200, 400, 800],
@@ -32,4 +32,4 @@ def generate_nups_task_scripts(
 if __name__ == '__main__':
     for algo in ['vanilla_ppo']:
         for env in ['Hopper-v5']:
-            generate_nups_task_scripts(algo, env)
+            generate_nuus_task_scripts(algo, env, exp_root_dir = 'exp_unnorm_rews_states_with_advs/')
