@@ -20,9 +20,9 @@ torch.set_printoptions(precision = 4, sci_mode = False)
 nuus_params = [
     'nuus_max_d_kl',
     'nuus_beta',
-    'nuus_num_iterations_cem',
-    'nuus_num_sampled_actions_cem',
-    'nuus_num_elite_actions_cem',
+    'nuus_num_iterations',
+    'nuus_num_sampled_actions',
+    'nuus_num_elite_actions',
     'nuus_ub_type',
     'nuus_solver',
     'nuus_num_sampled_actions_fim'
@@ -246,9 +246,9 @@ def get_parser():
     # Set ATTACK_EPS = 'nuus' to use the following parameters
     parser.add_argument('--nuus_max_d_kl', type=str, default='auto')
     parser.add_argument('--nuus_beta', type=float, default=100)
-    parser.add_argument('--nuus_num_iterations_cem', type=int, default=1)
-    parser.add_argument('--nuus_num_sampled_actions_cem', type=int, default=32)
-    parser.add_argument('--nuus_num_elite_actions_cem', type=int, default=8)
+    parser.add_argument('--nuus_num_iterations', type=int, default=10)
+    parser.add_argument('--nuus_num_sampled_actions', type=int, default=64)
+    parser.add_argument('--nuus_num_elite_actions', type=int, default=16)
     parser.add_argument('--nuus_ub_type', type=int, choices=[1], default=1)
     parser.add_argument('--nuus_num_sampled_actions_fim', type=int, default=1)
     parser.add_argument('--nuus_solver', type=str, choices=['approx', 'cvxpy'], default='approx')
@@ -288,13 +288,13 @@ def main():
     # params['attack_eps'] = 'nuus'
 
     p, params = load_trainer(params)
-    num_sampled_episodes = 10
+    num_sampled_episodes = 20
 
-    final_results = {}
-    final_results['results'] = {}
-    final_results['params'] = {key : params[key] for key in nuus_params}
+    for attack_method in ['none', 'critic', 'random', 'action', 'sarsa'][:-1]:
+        final_results = {}
+        final_results['results'] = {}
+        final_results['params'] = {key : params[key] for key in nuus_params}
 
-    for attack_method in ['none', 'critic', 'random', 'action', 'sarsa'][:1]:
         p.params.ATTACK_METHOD = attack_method
         if attack_method == 'sarsa':
             p.params.ATTACK_SARSA_NETWORK = os.path.join(p.store.path, 'sarsa.model')
@@ -321,8 +321,12 @@ def main():
             'ep_length' : sampled_ep_lengths,
         }
 
-    with open(os.path.join(params['out_dir'], params['exp_id'], 'eval_results.json'), 'w') as f:
-        json.dump(final_results, f, indent=4)
+
+        nuus_result_root_path = os.path.join('nuus_test', params['game'][:-3].lower(), params['mode'], params['exp_id'], attack_method)
+        if not os.path.exists(nuus_result_root_path):
+            os.makedirs(nuus_result_root_path)
+        with open(os.path.join(nuus_result_root_path, f'beta={params["nuus_beta"]}.json'), 'w') as f:
+            json.dump(final_results, f, indent=4)
 
 
 

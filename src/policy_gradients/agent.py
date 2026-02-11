@@ -27,7 +27,7 @@ from .custom_env import Env
 from .convex_relaxation import get_kl_bound as get_state_kl_bound
 
 
-from .est_nuus import calculate_nuus, estimate_maxa_absA_with_CEM, calculate_max_D_KL, NUUS_GPSolverNumpy
+from .est_nuus import calculate_nuus, estimate_maxa_absA_with_CEM, calculate_max_D_KL, NUUS_GPSolverNumpy, estimate_maxa_absA_cmaes
 
 
 def calculate_total_discounted_return(episode_step_rewards, gamma):
@@ -900,16 +900,27 @@ class Trainer():
             assert self.NUM_ACTORS == 1
 
             if self.params.NUUS_MAX_D_KL == 'auto':
-                maxa_absA, _ = estimate_maxa_absA_with_CEM(
-                    env = self.envs[0].env,
-                    val_model = self.val_model,
-                    state = last_states,
-                    gamma = self.params.GAMMA,
-                    num_iterations = self.params.NUUS_NUM_ITERATIONS_CEM,
-                    num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS_CEM,
-                    num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS_CEM,
-                    cpu = self.CPU
+                # maxa_absA, _ = estimate_maxa_absA_with_CEM(
+                #     env = self.envs[0].env,
+                #     val_model = self.val_model,
+                #     state = last_states,
+                #     gamma = self.params.GAMMA,
+                #     num_iterations = self.params.NUUS_NUM_ITERATIONS_CEM,
+                #     num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS_CEM,
+                #     num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS_CEM,
+                #     cpu = self.CPU
+                # )
+
+                maxa_absA = estimate_maxa_absA_cmaes(
+                    self.advantage_model, 
+                    last_states, 
+                    action_space = self.envs[0].env.action_space,
+                    num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                    num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                    max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                    sigma_init = 0.5
                 )
+
                 max_D_KL = calculate_max_D_KL(
                     ub_type = self.params.NUUS_UB_TYPE, 
                     gamma = self.params.GAMMA, 
@@ -990,7 +1001,7 @@ class Trainer():
                 else:
                     old_action, old_stdev = self.policy_model(last_states)
                 # Normalize stdev, avoid numerical issue
-                old_stdev /= (old_stdev.mean())
+                old_stdev = (old_stdev / old_stdev.mean()).detach()
                 old_action = old_action.detach()
                 with torch.enable_grad():
                     for i in range(steps):

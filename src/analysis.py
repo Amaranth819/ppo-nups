@@ -1,60 +1,72 @@
-def print_nups_res(
-    root_dir = './test_nups_b1/', 
-    kl_bound = 'b1',
-    plot_total_rewards = False,
-    plot_discounted_returns = True,
+import numpy as np
+from collections import defaultdict
+import pandas as pd
+import glob
+import json
+import os
+
+
+def read_nuus_res(
+    res_root_dir = 'nuus_test/',
+    algo = 'ppo',
+    envs = ['hopper', 'halfcheetah', 'walker2d'],
+    attack_methods = ['none', 'random', 'critic', 'action'],
+    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0],
 ):
-    envs = ['Hopper-v5', 'HalfCheetah-v5', 'Walker2d-v5']
-    betas = [10.0, 25.0, 50.0, 100.0, 200.0, 400.0, 800.0, 1600.0]
-    attack_methods = ['none', 'random', 'critic', 'action']
     
     rewards_table = defaultdict(lambda: [])
     d_returns_table = defaultdict(lambda: [])
 
     for env in envs:
-        for beta in betas:
-            json_file_paths = glob.glob(os.path.join(root_dir, f'{env}*klbound={kl_bound}_beta={beta}.json'))
-            if len(json_file_paths) == 0:
-                continue
-            all_rewards = defaultdict(lambda: [])
-            all_d_returns = defaultdict(lambda: [])
-            for p in json_file_paths:
-                with open(p, 'r') as jf:
-                    data = json.load(jf)
-                    for atk in attack_methods:
-                        all_rewards[atk].extend(data['sampled_ep_rewards'][atk])
-                        all_d_returns[atk].extend(data['sampled_ep_discounted_returns'][atk])
-            
-            if plot_total_rewards:
-                rewards_table['Env'].append(env)
-                rewards_table['Beta'].append(f'{int(beta):d}')
-                for atk in attack_methods:
-                    rewards_mean, rewards_std = np.mean(all_rewards[atk]).astype(int), np.std(all_rewards[atk]).astype(int)
+        for attack in attack_methods:
+            for beta in betas:
+                json_file_paths = glob.glob(os.path.join(res_root_dir, env, algo, '*', attack, f'beta={beta}.json'))
+                if len(json_file_paths) == 0:
+                    assert ValueError
 
-                    # no attack rewards
-                    no_attack_rewards_mean = np.mean(all_rewards['none']).astype(int)
-                    diff = rewards_mean - no_attack_rewards_mean
+                for p in json_file_paths:
+                    with open(p, 'r') as jf:
+                        data = json.load(jf)
+                        rewards_table[env, attack, beta].extend(data['results'][attack]['ep_reward'])
+                        d_returns_table[env, attack, beta].extend(data['results'][attack]['ep_return'])
 
-                    rewards_table[atk].append(f'{rewards_mean:d} $\pm$ {rewards_std:d} ({diff:d})')
+    return dict(rewards_table), dict(d_returns_table)
 
 
-            if plot_discounted_returns:
-                d_returns_table['Env'].append(env)
-                d_returns_table['Beta'].append(f'{int(beta):d}')
-                for atk in attack_methods:
-                    d_returns_mean, d_returns_std = np.mean(all_d_returns[atk]).astype(int), np.std(all_d_returns[atk]).astype(int)
 
-                    # no attack returns
-                    no_attack_d_returns_mean = np.mean(all_d_returns['none']).astype(int)
-                    diff = d_returns_mean - no_attack_d_returns_mean
+def export_res_latex_table(
+    table : dict, 
+    envs = ['hopper', 'halfcheetah', 'walker2d'],
+    attack_methods = ['none', 'random', 'critic', 'action'],
+    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0],
+    caption = None
+):
+    latex_table_dict = defaultdict(lambda: [])
+    
+    for env in envs:
+        for idx, beta in enumerate(betas):
+            latex_table_dict['Env'].append(env if idx == 0 else "")
+            latex_table_dict['Beta'].append(f'{int(beta):d}')
+            for attack in attack_methods:
+                all_samples = table[env, attack, beta]
+                mean, std = np.mean(all_samples).astype(int), np.std(all_samples).astype(int)
 
-                    d_returns_table[atk].append(f'{d_returns_mean:d} $\pm$ {d_returns_std:d} ({diff:d})')
+                # no attack rewards
+                no_attack_mean = np.mean(table[env, 'none', beta]).astype(int)
+                diff = mean - no_attack_mean
 
-    if plot_total_rewards:
-        rewards_table = pd.DataFrame(dict(rewards_table))
-        print(rewards_table.to_latex(index = False, caption = 'Total rewards $\sum_t R(s_t,a_t)$'))
-        print()
+                latex_table_dict[attack].append(f'{mean:d} $\pm$ {std:d} ({diff:d})')
 
-    if plot_discounted_returns:
-        d_returns_table = pd.DataFrame(dict(d_returns_table))
-        print(d_returns_table.to_latex(index = False, caption = 'Discounted returns $\sum_t \gamma^t R(s_t,a_t)$'))
+    latex_table = pd.DataFrame(dict(latex_table_dict))
+    print(latex_table.to_latex(index = False, caption = caption if caption is not None else ""))
+
+
+
+if __name__ == '__main__':
+    algo = 'ppo'
+    envs = ['hopper']
+    attack_methods = ['none', 'random', 'critic', 'action']
+    betas = [2.0]
+
+    reward_table, d_return_table = read_nuus_res(res_root_dir = 'nuus_test', algo = algo, envs = envs, attack_methods = attack_methods, betas = betas)
+    export_res_latex_table(d_return_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Discounted total return + PPO')

@@ -235,6 +235,85 @@ def estimate_maxa_absA_with_CEM(
 
 
 
+def estimate_maxa_absA_cmaes(
+    advantage_net, 
+    state, 
+    action_space, 
+    num_samples=64, num_elites=16, max_iters=10, 
+    sigma_init=0.5
+):
+    """
+    Estimates max_a |A^\pi(s,a)| using a simplified Covariance Matrix Adaptation Evolution Strategy (CMA-ES).
+    
+    Args:
+        advantage_net: The pretrained Advantage network A^\pi(s,a)
+        state: The current state tensor (1, state_dim)
+        action_dim: Dimension of the action space
+        pop_size: Number of candidate actions per iteration
+        max_iters: Number of generations to evolve
+        sigma_init: Initial step size (standard deviation)
+    """
+    device = state.device
+    action_dim = action_space.shape[0]
+    action_low = torch.from_numpy(action_space.low).float().to(device)
+    action_high = torch.from_numpy(action_space.high).float().to(device)
+
+    # Initialize CMA-ES parameters
+    mean = torch.zeros(action_dim, dtype=torch.float32, device=device)
+    cov = torch.eye(action_dim, dtype=torch.float32, device=device)
+    sigma = sigma_init
+    
+    # Selection parameters
+    weights = np.log(num_elites + 0.5) - torch.log(torch.arange(1, num_elites + 1).to(device))
+    weights /= torch.sum(weights)
+
+    best = -float('inf')
+
+    with torch.no_grad():
+        for i in range(max_iters):
+            dist = torch.distributions.MultivariateNormal(mean, cov * sigma**2)
+            samples = dist.sample((num_samples,))
+            actions_sampled = torch.clamp(samples, min=action_low, max=action_high)
+
+            # 2. Evaluate advantages for all sampled actions
+            state_batch = state.repeat(num_samples, 1)
+            
+            # Calculate |A(s, a)|
+            advantages = advantage_net(torch.cat([state_batch, actions_sampled], -1)).squeeze(-1)
+            abs_advantages = torch.abs(advantages)
+
+            # 3. Sort and select elite candidates
+            indices = torch.argsort(abs_advantages) # Aescending
+            elites = actions_sampled[indices[-num_elites:]]
+            
+            current_best = abs_advantages[indices[-1]].item()
+            if current_best > best:
+                best = current_best
+
+            # 4. Update Mean: Weighted average of elites
+            old_mean = mean.clone()
+            mean = weights @ elites
+            
+            # 5. Update Covariance: Estimate new shape from elites
+            # This is a simplified rank-mu update
+            centered_elites = elites - old_mean.unsqueeze(0)
+            new_cov = torch.zeros_like(cov)
+            for j in range(num_elites):
+                new_cov += weights[j] * torch.outer(centered_elites[j], centered_elites[j])
+            
+            # Add a small regularization to keep cov positive definite
+            cov = 0.8 * cov + 0.2 * (new_cov / (sigma**2) + 1e-6 * torch.eye(action_dim).to(device))
+            
+            # 6. Step size control (simple decay for this implementation)
+            sigma *= 0.95 
+
+            # print(f'Iter {i}: max_a |A| = {best:.5f}')
+
+    return best
+
+
+
+
 '''
     Upper bounds for KL divergence
 '''
