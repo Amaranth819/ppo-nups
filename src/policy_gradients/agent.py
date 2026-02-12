@@ -892,55 +892,61 @@ class Trainer():
             # Only attack a portion of steps.
             return last_states
         
-        eps = self.params.ATTACK_EPS
-        if eps == "same":
-            eps = self.params.ROBUST_PPO_EPS
-        elif eps == "nuus":
-            # Now only work for testing
-            assert self.NUM_ACTORS == 1
+        if self.params.ATTACK_METHOD == "none":
+            eps = 0
+        else:
+            eps = self.params.ATTACK_EPS
+            if eps == "same":
+                eps = self.params.ROBUST_PPO_EPS
+            elif eps == "nuus":
+                # Now only work for testing
+                assert self.NUM_ACTORS == 1
 
-            if self.params.NUUS_MAX_D_KL == 'auto':
-                # maxa_absA, _ = estimate_maxa_absA_with_CEM(
-                #     env = self.envs[0].env,
-                #     val_model = self.val_model,
-                #     state = last_states,
-                #     gamma = self.params.GAMMA,
-                #     num_iterations = self.params.NUUS_NUM_ITERATIONS_CEM,
-                #     num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS_CEM,
-                #     num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS_CEM,
-                #     cpu = self.CPU
-                # )
+                if self.params.NUUS_MAX_D_KL == 'auto':
+                    # # This method has an bug which causes the simulation to be unstable.
+                    # maxa_absA, _ = estimate_maxa_absA_with_CEM(
+                    #     env = self.envs[0].env,
+                    #     val_model = self.val_model,
+                    #     state = last_states,
+                    #     gamma = self.params.GAMMA,
+                    #     num_iterations = self.params.NUUS_NUM_ITERATIONS,
+                    #     num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS,
+                    #     num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS,
+                    #     cpu = self.CPU
+                    # )
 
-                maxa_absA = estimate_maxa_absA_cmaes(
-                    self.advantage_model, 
-                    last_states, 
-                    action_space = self.envs[0].env.action_space,
-                    num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
-                    num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
-                    max_iters = self.params.NUUS_NUM_ITERATIONS, 
-                    sigma_init = 0.5
-                )
+                    maxa_absA = estimate_maxa_absA_cmaes(
+                        self.advantage_model, 
+                        last_states, 
+                        action_space = self.envs[0].env.action_space,
+                        num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                        num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                        max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                        sigma_init = 0.5
+                    )
 
-                max_D_KL = calculate_max_D_KL(
-                    ub_type = self.params.NUUS_UB_TYPE, 
-                    gamma = self.params.GAMMA, 
-                    beta = self.NUUS_BETA, 
-                    maxa_absA = maxa_absA
+                    max_D_KL = calculate_max_D_KL(
+                        ub_type = self.params.NUUS_UB_TYPE, 
+                        gamma = self.params.GAMMA, 
+                        beta = self.NUUS_BETA, 
+                        maxa_absA = maxa_absA
+                    )
+
+                    # print(maxa_absA)
+                else:
+                    max_D_KL = float(self.params.NUUS_MAX_D_KL)
+
+                eps = calculate_nuus(
+                    policy_model = self.policy_model,
+                    state = last_states,
+                    max_D_KL = max_D_KL,
+                    eps = self.params.ROBUST_PPO_EPS,
+                    num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS_FIM,
+                    solver = self.params.NUUS_SOLVER,
+                    nuus_solver = self.nuus_solver,
                 )
             else:
-                max_D_KL = float(self.params.NUUS_MAX_D_KL)
-
-            eps = calculate_nuus(
-                policy_model = self.policy_model,
-                state = last_states,
-                max_D_KL = max_D_KL,
-                eps = self.params.ROBUST_PPO_EPS,
-                num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS_FIM,
-                solver = self.params.NUUS_SOLVER,
-                nuus_solver = self.nuus_solver,
-            )
-        else:
-            eps = float(eps)
+                eps = float(eps)
         
         steps = self.params.ATTACK_STEPS
         if self.params.ATTACK_METHOD == "critic":

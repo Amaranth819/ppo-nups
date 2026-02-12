@@ -134,9 +134,10 @@ def load_trainer(params):
     original_stdev = p.policy_model.log_stdev.clone().detach()
     if params["noise_factor"] != 1.0:
         p.policy_model.log_stdev.data[:] += np.log(params["noise_factor"])
-    if params["deterministic"]:
-        # print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
-        p.policy_model.log_stdev.data[:] = -100
+        print('Add noise factor:', params["noise_factor"])
+    # if params["deterministic"]:
+    #     print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
+    #     p.policy_model.log_stdev.data[:] = -100
     # print('Gaussian noise in policy (after adjustment):')
     # print(torch.exp(p.policy_model.log_stdev))
 
@@ -245,7 +246,7 @@ def get_parser():
     # NUUS settings
     # Set ATTACK_EPS = 'nuus' to use the following parameters
     parser.add_argument('--nuus_max_d_kl', type=str, default='auto')
-    parser.add_argument('--nuus_beta', type=float, default=100)
+    parser.add_argument('--nuus_beta', type=float, default=2.0)
     parser.add_argument('--nuus_num_iterations', type=int, default=10)
     parser.add_argument('--nuus_num_sampled_actions', type=int, default=64)
     parser.add_argument('--nuus_num_elite_actions', type=int, default=16)
@@ -284,13 +285,12 @@ def main():
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    # 
-    # params['attack_eps'] = 'nuus'
+    params['attack_eps'] = 'nuus'
 
     p, params = load_trainer(params)
     num_sampled_episodes = 20
 
-    for attack_method in ['none', 'critic', 'random', 'action', 'sarsa'][:-1]:
+    for attack_method in ['none', 'random', 'critic', 'action', 'sarsa'][:-1]:
         final_results = {}
         final_results['results'] = {}
         final_results['params'] = {key : params[key] for key in nuus_params}

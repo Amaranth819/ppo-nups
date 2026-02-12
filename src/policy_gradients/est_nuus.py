@@ -100,7 +100,7 @@ def calculate_nuus(
     if solver == 'approx':
         assert num_sampled_actions == 1
         selected_action = pd.sample()
-        log_prob = pd.log_prob(selected_action).sum(-1).mean()
+        log_prob = pd.log_prob(selected_action).sum(-1).mean() # nan, due to logstd=-100.
 
         if state.grad is not None:
             state.grad.zero_()
