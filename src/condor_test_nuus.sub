@@ -1,0 +1,20 @@
+executable = ./condor_test_nuus.sh
+arguments = $(filename)
+
+error  = $(filename).err
+output = $(filename).out
+log    = condor_test_nuus.log
+
+notification = Complete
+# notify_user = xchen168@syr.edu
+
+# 45466 for better gpu
+requirements = (CUDAGlobalMemoryMb >= 22699) && (CUDAGlobalMemoryMb < 40000)
++request_gpus = 1
+
+# Limits this specific submission to x jobs running at once
+max_idle = 16
+concurrency_limits = MyLimit:16
+
+
+queue filename matching files test_nuus_inputs/vanilla_ppo/*.input

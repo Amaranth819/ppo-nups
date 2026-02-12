@@ -24,4 +24,4 @@ eval "$(/home/$(whoami)/miniconda3/bin/conda shell.bash hook)"
 conda activate nuus-py3.9
 
 export C_INCLUDE_PATH=$C_LIBRARY_PATH:$HOME/miniconda3/envs/nuus-py3.9/include
-python -u run.py --config-path ${arr[0]} --seed ${arr[1]}
+python -u test_nuus.py --config-path ${arr[0]} --exp-id ${arr[1]} --nuus_beta ${arr[2]} --deterministic

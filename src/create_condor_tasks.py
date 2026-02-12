@@ -52,5 +52,31 @@ def condor_test_tasks(exp_root_dir = 'exps/', algo = 'robust_ppo_sgld', test_tas
             f.writelines(content)
 
 
+
+def condor_nuus_tasks(
+    exp_root_dir = 'exps', 
+    envs = ['hopper', 'halfcheetah', 'walker2d'][:],
+    algo = 'vanilla_ppo', 
+    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0],
+    test_task_root_dir = 'test_nuus_inputs/'
+):
+    test_task_root_path = os.path.join(test_task_root_dir, algo)
+    if not os.path.exists(test_task_root_path):
+        os.makedirs(test_task_root_path)
+
+    for env in envs:
+        for cfg_path in glob.glob(os.path.join(exp_root_dir, env, algo, 'agents', '*', 'train.json')):
+            exp_id = cfg_path.split('/')[-2]
+
+            for beta in betas:
+                with open(os.path.join(test_task_root_path, f'{env}_{algo}_{exp_id}_beta={beta}.input'), 'w') as f:
+                    content = []
+                    content.append(cfg_path + '\n')
+                    content.append(exp_id + '\n')
+                    content.append(str(beta) + '\n')
+                    f.writelines(content)
+
+
 if __name__ == '__main__':
-    condor_train_tasks()
+    # condor_train_tasks()
+    condor_nuus_tasks()
