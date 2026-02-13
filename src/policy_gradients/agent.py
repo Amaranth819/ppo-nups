@@ -904,16 +904,16 @@ class Trainer():
 
                 if self.params.NUUS_MAX_D_KL == 'auto':
                     # This method has an bug which causes the simulation to be unstable.
-                    maxa_absA, _ = estimate_maxa_absA_with_CEM(
-                        env = self.envs[0].env,
-                        val_model = self.val_model,
-                        state = last_states,
-                        gamma = self.params.GAMMA,
-                        num_iterations = self.params.NUUS_NUM_ITERATIONS,
-                        num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS,
-                        num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS,
-                        cpu = self.CPU
-                    )
+                    # maxa_absA, _ = estimate_maxa_absA_with_CEM(
+                    #     env = self.envs[0].env,
+                    #     val_model = self.val_model,
+                    #     state = last_states,
+                    #     gamma = self.params.GAMMA,
+                    #     num_iterations = self.params.NUUS_NUM_ITERATIONS,
+                    #     num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS,
+                    #     num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS,
+                    #     cpu = self.CPU
+                    # )
 
                     # D_KL upper bound with max_a |A^\pi(s,a)|
                     maxa_absA = estimate_advantage_obj_with_cmaes(
