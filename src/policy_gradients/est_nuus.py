@@ -235,9 +235,10 @@ def estimate_maxa_absA_with_CEM(
 
 
 
-def estimate_maxa_absA_cmaes(
+def estimate_advantage_obj_with_cmaes(
     advantage_net, 
     state, 
+    obj_func,
     action_space, 
     num_samples=64, num_elites=16, max_iters=10, 
     sigma_init=0.5
@@ -278,15 +279,16 @@ def estimate_maxa_absA_cmaes(
             # 2. Evaluate advantages for all sampled actions
             state_batch = state.repeat(num_samples, 1)
             
-            # Calculate |A(s, a)|
+            # Calculate the objective function
             advantages = advantage_net(torch.cat([state_batch, actions_sampled], -1)).squeeze(-1)
-            abs_advantages = torch.abs(advantages)
+            # abs_advantages = torch.abs(advantages)
+            objs = obj_func(advantages)
 
             # 3. Sort and select elite candidates
-            indices = torch.argsort(abs_advantages) # Aescending
+            indices = torch.argsort(objs) # Ascending
             elites = actions_sampled[indices[-num_elites:]]
             
-            current_best = abs_advantages[indices[-1]].item()
+            current_best = objs[indices[-1]].item()
             if current_best > best:
                 best = current_best
 

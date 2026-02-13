@@ -27,7 +27,7 @@ from .custom_env import Env
 from .convex_relaxation import get_kl_bound as get_state_kl_bound
 
 
-from .est_nuus import calculate_nuus, estimate_maxa_absA_with_CEM, calculate_max_D_KL, NUUS_GPSolverNumpy, estimate_maxa_absA_cmaes
+from .est_nuus import calculate_nuus, estimate_maxa_absA_with_CEM, calculate_max_D_KL, NUUS_GPSolverNumpy, estimate_advantage_obj_with_cmaes
 
 
 def calculate_total_discounted_return(episode_step_rewards, gamma):
@@ -915,22 +915,53 @@ class Trainer():
                     #     cpu = self.CPU
                     # )
 
-                    maxa_absA = estimate_maxa_absA_cmaes(
+                    # # D_KL upper bound with max_a |A^\pi(s,a)|
+                    # maxa_absA = estimate_advantage_obj_with_cmaes(
+                    #     self.advantage_model, 
+                    #     last_states, 
+                    #     obj_func = lambda x: torch.abs(x),
+                    #     action_space = self.envs[0].env.action_space,
+                    #     num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                    #     num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                    #     max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                    #     sigma_init = 0.5
+                    # )
+                    # max_D_KL = calculate_max_D_KL(
+                    #     ub_type = self.params.NUUS_UB_TYPE, 
+                    #     gamma = self.params.GAMMA, 
+                    #     beta = self.NUUS_BETA, 
+                    #     maxa_absA = maxa_absA
+                    # )
+
+
+                    # D_KL upper bound with the span \max_a A^\pi(s,a) - \min_a A^\pi(s,a)
+                    maxa_A = estimate_advantage_obj_with_cmaes(
                         self.advantage_model, 
                         last_states, 
+                        obj_func = lambda x: x,
                         action_space = self.envs[0].env.action_space,
                         num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
                         num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
                         max_iters = self.params.NUUS_NUM_ITERATIONS, 
                         sigma_init = 0.5
                     )
-
+                    mina_A = estimate_advantage_obj_with_cmaes(
+                        self.advantage_model, 
+                        last_states, 
+                        obj_func = lambda x: -x,
+                        action_space = self.envs[0].env.action_space,
+                        num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                        num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                        max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                        sigma_init = 0.5
+                    )
                     max_D_KL = calculate_max_D_KL(
                         ub_type = self.params.NUUS_UB_TYPE, 
                         gamma = self.params.GAMMA, 
                         beta = self.NUUS_BETA, 
-                        maxa_absA = maxa_absA
+                        maxa_absA = maxa_A - mina_A
                     )
+
 
                     # print(maxa_absA)
                 else:

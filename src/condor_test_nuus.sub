@@ -13,8 +13,9 @@ requirements = (CUDAGlobalMemoryMb >= 22699) && (CUDAGlobalMemoryMb < 40000)
 +request_gpus = 1
 
 # Limits this specific submission to x jobs running at once
-max_idle = 16
-concurrency_limits = MyLimit:16
+# max_idle = 32
+# concurrency_limits = MyLimit:32
 
 
+# queue filename matching files test_nuus_inputs/vanilla_ppo/hopper_vanilla_ppo_5c8de009-b865-4c1b-b311-375f5978186c_beta=2.0.input
 queue filename matching files test_nuus_inputs/vanilla_ppo/*.input

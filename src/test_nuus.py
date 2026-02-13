@@ -252,7 +252,7 @@ def get_parser():
     parser.add_argument('--nuus_num_elite_actions', type=int, default=16)
     parser.add_argument('--nuus_ub_type', type=int, choices=[1], default=1)
     parser.add_argument('--nuus_num_sampled_actions_fim', type=int, default=1)
-    parser.add_argument('--nuus_solver', type=str, choices=['approx', 'cvxpy'], default='approx')
+    parser.add_argument('--nuus_solver', type=str, choices=['approx', 'cvxpy'], default='cvxpy')
 
     parser = add_common_parser_opts(parser)
 

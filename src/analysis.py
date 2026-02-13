@@ -58,15 +58,15 @@ def export_res_latex_table(
                 latex_table_dict[attack].append(f'{mean:d} $\pm$ {std:d} ({diff:d})')
 
     latex_table = pd.DataFrame(dict(latex_table_dict))
-    print(latex_table.to_latex(index = False, caption = caption if caption is not None else ""))
+    print(latex_table.to_latex(index = False, escape = False, caption = caption if caption is not None else ""))
 
 
 
 if __name__ == '__main__':
     algo = 'ppo'
-    envs = ['hopper']
+    envs = ['hopper', 'halfcheetah', 'walker2d'][:]
     attack_methods = ['none', 'random', 'critic', 'action']
-    betas = [2.0]
+    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0]
 
     reward_table, d_return_table = read_nuus_res(res_root_dir = 'nuus_test', algo = algo, envs = envs, attack_methods = attack_methods, betas = betas)
     export_res_latex_table(d_return_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Discounted total return + PPO')
