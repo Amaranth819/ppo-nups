@@ -903,52 +903,23 @@ class Trainer():
                 assert self.NUM_ACTORS == 1
 
                 if self.params.NUUS_MAX_D_KL == 'auto':
-                    # # This method has an bug which causes the simulation to be unstable.
-                    # maxa_absA, _ = estimate_maxa_absA_with_CEM(
-                    #     env = self.envs[0].env,
-                    #     val_model = self.val_model,
-                    #     state = last_states,
-                    #     gamma = self.params.GAMMA,
-                    #     num_iterations = self.params.NUUS_NUM_ITERATIONS,
-                    #     num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS,
-                    #     num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS,
-                    #     cpu = self.CPU
-                    # )
-
-                    # # D_KL upper bound with max_a |A^\pi(s,a)|
-                    # maxa_absA = estimate_advantage_obj_with_cmaes(
-                    #     self.advantage_model, 
-                    #     last_states, 
-                    #     obj_func = lambda x: torch.abs(x),
-                    #     action_space = self.envs[0].env.action_space,
-                    #     num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
-                    #     num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
-                    #     max_iters = self.params.NUUS_NUM_ITERATIONS, 
-                    #     sigma_init = 0.5
-                    # )
-                    # max_D_KL = calculate_max_D_KL(
-                    #     ub_type = self.params.NUUS_UB_TYPE, 
-                    #     gamma = self.params.GAMMA, 
-                    #     beta = self.NUUS_BETA, 
-                    #     maxa_absA = maxa_absA
-                    # )
-
-
-                    # D_KL upper bound with the span \max_a A^\pi(s,a) - \min_a A^\pi(s,a)
-                    maxa_A = estimate_advantage_obj_with_cmaes(
-                        self.advantage_model, 
-                        last_states, 
-                        obj_func = lambda x: x,
-                        action_space = self.envs[0].env.action_space,
-                        num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
-                        num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
-                        max_iters = self.params.NUUS_NUM_ITERATIONS, 
-                        sigma_init = 0.5
+                    # This method has an bug which causes the simulation to be unstable.
+                    maxa_absA, _ = estimate_maxa_absA_with_CEM(
+                        env = self.envs[0].env,
+                        val_model = self.val_model,
+                        state = last_states,
+                        gamma = self.params.GAMMA,
+                        num_iterations = self.params.NUUS_NUM_ITERATIONS,
+                        num_sampled_actions = self.params.NUUS_NUM_SAMPLED_ACTIONS,
+                        num_elite_actions = self.params.NUUS_NUM_ELITE_ACTIONS,
+                        cpu = self.CPU
                     )
-                    mina_A = estimate_advantage_obj_with_cmaes(
+
+                    # D_KL upper bound with max_a |A^\pi(s,a)|
+                    maxa_absA = estimate_advantage_obj_with_cmaes(
                         self.advantage_model, 
                         last_states, 
-                        obj_func = lambda x: -x,
+                        obj_func = lambda x: torch.abs(x),
                         action_space = self.envs[0].env.action_space,
                         num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
                         num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
@@ -959,11 +930,37 @@ class Trainer():
                         ub_type = self.params.NUUS_UB_TYPE, 
                         gamma = self.params.GAMMA, 
                         beta = self.NUUS_BETA, 
-                        maxa_absA = maxa_A - mina_A
+                        maxa_absA = maxa_absA
                     )
 
 
-                    # print(maxa_absA)
+                    # # D_KL upper bound with the span \max_a A^\pi(s,a) - \min_a A^\pi(s,a)
+                    # maxa_A = estimate_advantage_obj_with_cmaes(
+                    #     self.advantage_model, 
+                    #     last_states, 
+                    #     obj_func = lambda x: x,
+                    #     action_space = self.envs[0].env.action_space,
+                    #     num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                    #     num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                    #     max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                    #     sigma_init = 0.5
+                    # )
+                    # mina_A = estimate_advantage_obj_with_cmaes(
+                    #     self.advantage_model, 
+                    #     last_states, 
+                    #     obj_func = lambda x: -x,
+                    #     action_space = self.envs[0].env.action_space,
+                    #     num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                    #     num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                    #     max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                    #     sigma_init = 0.5
+                    # )
+                    # max_D_KL = calculate_max_D_KL(
+                    #     ub_type = self.params.NUUS_UB_TYPE, 
+                    #     gamma = self.params.GAMMA, 
+                    #     beta = self.NUUS_BETA, 
+                    #     maxa_absA = maxa_A - mina_A
+                    # )
                 else:
                     max_D_KL = float(self.params.NUUS_MAX_D_KL)
 
@@ -1564,7 +1561,7 @@ class Trainer():
         self.n_steps += 1
         return avg_ep_reward
 
-    def run_test(self, max_len=2048, compute_bounds=False, use_full_backward=False, original_stdev=None, compute_worst_q= False):
+    def run_test(self, max_len=2048, deterministic=True, compute_bounds=False, use_full_backward=False, original_stdev=None, compute_worst_q= False):
         print("-" * 80)
         start_time = time.time()
         if compute_bounds and not hasattr(self, "relaxed_policy_model"):
@@ -1573,7 +1570,7 @@ class Trainer():
 
         # with torch.no_grad():
         # Keep the gradients because we may calculate the gradients when computing NUUS
-        output = self.run_test_trajectories(max_len=max_len)
+        output = self.run_test_trajectories(max_len=max_len, deterministic = deterministic)
         # ep_length, ep_reward, actions, action_means, states = output
         ep_length, ep_reward, ep_return, actions, action_means, states = output
         msg = "Episode reward: %f | episode length: %f"
@@ -1601,7 +1598,7 @@ class Trainer():
         # Unroll the trajectories (actors, T, ...) -> (actors*T, ...)
         return ep_length, ep_reward, ep_return, actions.cpu().numpy(), action_means.cpu().numpy(), states.cpu().numpy(), kl_upper_bound, worst_q, value
 
-    def run_test_trajectories(self, max_len, should_tqdm=False, deterministic=False):
+    def run_test_trajectories(self, max_len, deterministic, should_tqdm=False):
         # Arrays to be updated with historic info
         envs = self.envs
         initial_states = self.reset_envs(envs)
@@ -1681,6 +1678,9 @@ class Trainer():
             # if discrete, next_actions is (# actors, 1) 
             # otw if continuous (# actors, 1, action dim)
             next_actions = next_actions.unsqueeze(1)
+            # print(deterministic)
+            # print('actions', next_actions)
+            # print('means', next_action_means)
 
             ret = self.multi_actor_step(next_actions, envs)
 

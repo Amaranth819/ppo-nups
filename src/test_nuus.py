@@ -303,7 +303,7 @@ def main():
         sampled_ep_returns = []
         sampled_ep_lengths = []
         while len(sampled_ep_rewards) < num_sampled_episodes:
-            ep_length, ep_reward, ep_return, actions, action_means, states, kl_upper_bound, _, ep_discounted_return = p.run_test(max_len = 1000)
+            ep_length, ep_reward, ep_return, actions, action_means, states, kl_upper_bound, _, ep_discounted_return = p.run_test(max_len = 1000, deterministic = True)
             if ep_reward != np.nan:
                 sampled_ep_rewards.append(ep_reward)
                 sampled_ep_returns.append(ep_return)

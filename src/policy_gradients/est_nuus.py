@@ -61,7 +61,7 @@ def calculate_state_FIM(
     # assert len(state.size()) == 2 and state.size(0) == 1
     state.requires_grad_(True)
 
-    FIM = torch.zeros(shape = (state.size(-1), state.size(-1)), device = state.device)
+    FIM = torch.zeros(size = (state.size(-1), state.size(-1)), device = state.device)
     for a_idx in range(num_sampled_actions):
         selected_action = action_dist.sample()
         log_prob = action_dist.log_prob(selected_action).sum(-1).mean()
@@ -109,7 +109,7 @@ def calculate_nuus(
 
     elif solver == 'cvxpy':
         FIM = calculate_state_FIM(state, pd, num_sampled_actions)
-        FIM = torch.abs(FIM)
+        FIM = np.abs(FIM)
         assert nuus_solver is not None
         omega_vals = nuus_solver.solve(FIM, max_D_KL)
         omega_vals = torch.from_numpy(omega_vals).to(state.device).float().unsqueeze(0)
