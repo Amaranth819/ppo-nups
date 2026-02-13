@@ -915,40 +915,11 @@ class Trainer():
                     #     cpu = self.CPU
                     # )
 
-                    # D_KL upper bound with max_a |A^\pi(s,a)|
-                    maxa_absA = estimate_advantage_obj_with_cmaes(
-                        self.advantage_model, 
-                        last_states, 
-                        obj_func = lambda x: torch.abs(x),
-                        action_space = self.envs[0].env.action_space,
-                        num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
-                        num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
-                        max_iters = self.params.NUUS_NUM_ITERATIONS, 
-                        sigma_init = 0.5
-                    )
-                    max_D_KL = calculate_max_D_KL(
-                        ub_type = self.params.NUUS_UB_TYPE, 
-                        gamma = self.params.GAMMA, 
-                        beta = self.NUUS_BETA, 
-                        maxa_absA = maxa_absA
-                    )
-
-
-                    # # D_KL upper bound with the span \max_a A^\pi(s,a) - \min_a A^\pi(s,a)
-                    # maxa_A = estimate_advantage_obj_with_cmaes(
+                    # # D_KL upper bound with max_a |A^\pi(s,a)|
+                    # maxa_absA = estimate_advantage_obj_with_cmaes(
                     #     self.advantage_model, 
                     #     last_states, 
-                    #     obj_func = lambda x: x,
-                    #     action_space = self.envs[0].env.action_space,
-                    #     num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
-                    #     num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
-                    #     max_iters = self.params.NUUS_NUM_ITERATIONS, 
-                    #     sigma_init = 0.5
-                    # )
-                    # mina_A = estimate_advantage_obj_with_cmaes(
-                    #     self.advantage_model, 
-                    #     last_states, 
-                    #     obj_func = lambda x: -x,
+                    #     obj_func = lambda x: torch.abs(x),
                     #     action_space = self.envs[0].env.action_space,
                     #     num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
                     #     num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
@@ -959,8 +930,37 @@ class Trainer():
                     #     ub_type = self.params.NUUS_UB_TYPE, 
                     #     gamma = self.params.GAMMA, 
                     #     beta = self.NUUS_BETA, 
-                    #     maxa_absA = maxa_A - mina_A
+                    #     maxa_absA = maxa_absA
                     # )
+
+
+                    # D_KL upper bound with the span \max_a A^\pi(s,a) - \min_a A^\pi(s,a)
+                    maxa_A = estimate_advantage_obj_with_cmaes(
+                        self.advantage_model, 
+                        last_states, 
+                        obj_func = lambda x: x,
+                        action_space = self.envs[0].env.action_space,
+                        num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                        num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                        max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                        sigma_init = 0.5
+                    )
+                    mina_A = estimate_advantage_obj_with_cmaes(
+                        self.advantage_model, 
+                        last_states, 
+                        obj_func = lambda x: -x,
+                        action_space = self.envs[0].env.action_space,
+                        num_samples = self.params.NUUS_NUM_SAMPLED_ACTIONS, 
+                        num_elites = self.params.NUUS_NUM_ELITE_ACTIONS, 
+                        max_iters = self.params.NUUS_NUM_ITERATIONS, 
+                        sigma_init = 0.5
+                    )
+                    max_D_KL = calculate_max_D_KL(
+                        ub_type = self.params.NUUS_UB_TYPE, 
+                        gamma = self.params.GAMMA, 
+                        beta = self.NUUS_BETA, 
+                        maxa_absA = maxa_A - mina_A
+                    )
                 else:
                     max_D_KL = float(self.params.NUUS_MAX_D_KL)
 

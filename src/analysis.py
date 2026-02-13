@@ -64,9 +64,12 @@ def export_res_latex_table(
 
 if __name__ == '__main__':
     algo = 'ppo'
-    envs = ['hopper', 'halfcheetah', 'walker2d'][:]
+    envs = ['hopper', 'halfcheetah', 'walker2d'][:1]
     attack_methods = ['none', 'random', 'critic', 'action']
     betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0]
 
     reward_table, d_return_table = read_nuus_res(res_root_dir = 'nuus_test', algo = algo, envs = envs, attack_methods = attack_methods, betas = betas)
-    export_res_latex_table(d_return_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Discounted total return + PPO')
+    
+    export_res_latex_table(d_return_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Discounted total return')
+
+    export_res_latex_table(reward_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Total rewards')
