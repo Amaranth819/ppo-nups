@@ -165,7 +165,7 @@ def main(params):
         for i in range(num_episodes):
             print('Collecting %d / %d episodes' % (i+1, num_episodes))
             # ep_length, ep_reward, actions, action_means, states, kl_certificates, worst_q = p.run_test(compute_bounds=params['compute_kl_cert'], use_full_backward=params['use_full_backward'], original_stdev=original_stdev, compute_worst_q=params['compute_worst_q'])
-            ep_length, ep_reward, ep_return, actions, action_means, states, kl_certificates, worst_q = p.run_test(compute_bounds=params['compute_kl_cert'], use_full_backward=params['use_full_backward'], original_stdev=original_stdev, compute_worst_q=params['compute_worst_q'])
+            ep_length, ep_reward, ep_return, ep_ori_return, actions, action_means, states, kl_certificates, worst_q = p.run_test(compute_bounds=params['compute_kl_cert'], use_full_backward=params['use_full_backward'], original_stdev=original_stdev, compute_worst_q=params['compute_worst_q'])
             not_dones = np.ones(len(actions))
             not_dones[-1] = 0
             if i == 0:
@@ -196,7 +196,7 @@ def main(params):
         for i in range(num_episodes):
             print('Episode %d / %d' % (i+1, num_episodes))
             # ep_length, ep_reward, actions, action_means, states, kl_certificates, worst_q, value = p.run_test(compute_bounds=params['compute_kl_cert'], use_full_backward=params['use_full_backward'], original_stdev=original_stdev, compute_worst_q=params['compute_worst_q'])
-            ep_length, ep_reward, ep_return, actions, action_means, states, kl_certificates, worst_q, value = p.run_test(compute_bounds=params['compute_kl_cert'], use_full_backward=params['use_full_backward'], original_stdev=original_stdev, compute_worst_q=params['compute_worst_q'])
+            ep_length, ep_reward, ep_return, ep_ori_return, actions, action_means, states, kl_certificates, worst_q, value = p.run_test(compute_bounds=params['compute_kl_cert'], use_full_backward=params['use_full_backward'], original_stdev=original_stdev, compute_worst_q=params['compute_worst_q'])
             if i == 0:
                 all_actions = actions.copy()
                 all_states = states.copy()

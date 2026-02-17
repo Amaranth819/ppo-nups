@@ -453,6 +453,11 @@ class Trainer():
         '''
         normed_rewards, states, not_dones = [], [], []
         completed_episode_info = []
+
+        # Add a list for saving the other episode info (unscaled rewards)
+        other_episode_info = {}
+        other_episode_info['original_reward'] = []
+
         for action, env in zip(actions, envs):
             gym_action = action[0].cpu().numpy()
             new_state, normed_reward, is_done, info = env.step(gym_action)
@@ -465,9 +470,12 @@ class Trainer():
             not_dones.append([int(not is_done)])
             states.append([new_state])
 
+            # 
+            other_episode_info['original_reward'].append(info['original_reward'])
+
         tensor_maker = cpu_tensorize if self.CPU else cu_tensorize
         data = list(map(tensor_maker, [normed_rewards, states, not_dones]))
-        return [completed_episode_info, *data]
+        return [completed_episode_info, *data, other_episode_info]
 
     def run_trajectories(self, num_saps, return_rewards=False, should_tqdm=False,
             collect_adversary_trajectory=False):
@@ -605,7 +613,7 @@ class Trainer():
 
             # done_info = List of (length, reward) pairs for each completed trajectory
             # (next_rewards, next_states, next_dones) act like multi-actor env.step()
-            done_info, next_rewards, next_states, next_not_dones = ret
+            done_info, next_rewards, next_states, next_not_dones, _ = ret
             # Reset the policy (if the policy has memory if we are done)
             if next_not_dones.item() == 0:
                 self.policy_model.reset()
@@ -1572,7 +1580,7 @@ class Trainer():
         # Keep the gradients because we may calculate the gradients when computing NUUS
         output = self.run_test_trajectories(max_len=max_len, deterministic = deterministic)
         # ep_length, ep_reward, actions, action_means, states = output
-        ep_length, ep_reward, ep_return, actions, action_means, states = output
+        ep_length, ep_reward, ep_return, ep_ori_return, actions, action_means, states = output
         msg = "Episode reward: %f | episode length: %f"
         print(msg % (ep_reward, ep_length))
         if compute_bounds:
@@ -1596,7 +1604,7 @@ class Trainer():
             worst_q = float("nan")
             value = float("nan")
         # Unroll the trajectories (actors, T, ...) -> (actors*T, ...)
-        return ep_length, ep_reward, ep_return, actions.cpu().numpy(), action_means.cpu().numpy(), states.cpu().numpy(), kl_upper_bound, worst_q, value
+        return ep_length, ep_reward, ep_return, ep_ori_return, actions.cpu().numpy(), action_means.cpu().numpy(), states.cpu().numpy(), kl_upper_bound, worst_q, value
 
     def run_test_trajectories(self, max_len, deterministic, should_tqdm=False):
         # Arrays to be updated with historic info
@@ -1612,6 +1620,7 @@ class Trainer():
 
         shape = (1, max_len)
         rewards = ch.zeros(shape)
+        original_rewards = ch.zeros(shape)
 
         actions_shape = shape + (self.NUM_ACTIONS,)
         actions = ch.zeros(actions_shape)
@@ -1686,7 +1695,7 @@ class Trainer():
 
             # done_info = List of (length, reward) pairs for each completed trajectory
             # (next_rewards, next_states, next_dones) act like multi-actor env.step()
-            done_info, next_rewards, next_states, next_not_dones = ret
+            done_info, next_rewards, next_states, next_not_dones, other_episode_info = ret
             # Reset the policy (if the policy has memory if we are done)
             if next_not_dones.item() == 0:
                 self.policy_model.reset()
@@ -1696,10 +1705,12 @@ class Trainer():
             # each shape: (nact, t, ...) -> (nact, t + 1, ...)
 
             pairs = [
-                (rewards, next_rewards),
+                (rewards, next_rewards), # The reward processed by reward_filter
                 (actions, next_actions), # The sampled actions.
                 (action_means, next_action_means), # The sampled actions.
                 (states, next_states),
+
+                (original_rewards, torch.tensor(other_episode_info['original_reward']))
             ]
 
             last_states = next_states[:, 0, :]
@@ -1728,11 +1739,16 @@ class Trainer():
         states = states[0][:t+1]
         rewards = rewards[0][:t+1]
 
+        original_rewards = original_rewards[0][:t+1]
+
         # Total discounted return
         ep_return = calculate_total_discounted_return(rewards.detach().cpu().numpy(), self.params.GAMMA)
 
+        # Total discounted return based on the original rewards
+        ep_ori_return = calculate_total_discounted_return(original_rewards.detach().cpu().numpy(), self.params.GAMMA)
+
         # to_ret = (ep_length, ep_reward, actions, action_means, states)
-        to_ret = (ep_length, ep_reward, ep_return, actions, action_means, states)        
+        to_ret = (ep_length, ep_reward, ep_return, ep_ori_return, actions, action_means, states)        
         
         return to_ret
 

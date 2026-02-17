@@ -57,7 +57,7 @@ def condor_nuus_tasks(
     exp_root_dir = 'exps', 
     envs = ['hopper', 'halfcheetah', 'walker2d'][:],
     algo = 'vanilla_ppo', 
-    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0][:1],
+    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0],
     test_task_root_dir = 'test_nuus_inputs/'
 ):
     test_task_root_path = os.path.join(test_task_root_dir, algo)
@@ -79,4 +79,8 @@ def condor_nuus_tasks(
 
 if __name__ == '__main__':
     # condor_train_tasks()
-    condor_nuus_tasks()
+
+    gamma = 0.99
+    # betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0]
+    betas = [0.02, 0.05, 0.1, 0.2, 0.4, 0.8, 1.6] # scaled by 1-gamma
+    condor_nuus_tasks(betas = betas)

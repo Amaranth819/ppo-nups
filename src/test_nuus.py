@@ -139,11 +139,11 @@ def load_trainer(params):
     if params["noise_factor"] != 1.0:
         p.policy_model.log_stdev.data[:] += np.log(params["noise_factor"])
         print('Add noise factor:', params["noise_factor"])
-    if params["deterministic"]:
-        print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
-        p.policy_model.log_stdev.data[:] = -100
-    print('Gaussian noise in policy (after adjustment):')
-    print(torch.exp(p.policy_model.log_stdev))
+    # if params["deterministic"]:
+    #     print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
+    #     p.policy_model.log_stdev.data[:] = -100
+    # print('Gaussian noise in policy (after adjustment):')
+    # print(torch.exp(p.policy_model.log_stdev))
 
     return p, params
 
@@ -256,7 +256,7 @@ def get_parser():
     parser.add_argument('--nuus_num_elite_actions', type=int, default=16)
     parser.add_argument('--nuus_ub_type', type=int, choices=[1], default=1)
     parser.add_argument('--nuus_num_sampled_actions_fim', type=int, default=1)
-    parser.add_argument('--nuus_solver', type=str, choices=['approx', 'cvxpy'], default='cvxpy')
+    parser.add_argument('--nuus_solver', type=str, choices=['approx', 'cvxpy'], default='approx')
 
     parser = add_common_parser_opts(parser)
 
@@ -294,7 +294,7 @@ def main():
     p, params = load_trainer(params)
     num_sampled_episodes = 20
 
-    for attack_method in ['none', 'random', 'critic', 'action', 'sarsa'][:1]:
+    for attack_method in ['none', 'random', 'critic', 'action', 'sarsa'][:]:
         final_results = {}
         final_results['results'] = {}
         final_results['params'] = {key : params[key] for key in nuus_params}
@@ -306,16 +306,19 @@ def main():
         sampled_ep_rewards = []
         sampled_ep_returns = []
         sampled_ep_lengths = []
+        sampled_ep_ori_returns = []
         while len(sampled_ep_rewards) < num_sampled_episodes:
-            ep_length, ep_reward, ep_return, actions, action_means, states, kl_upper_bound, _, ep_discounted_return = p.run_test(max_len = 1000, deterministic = True)
+            ep_length, ep_reward, ep_return, ep_ori_return, actions, action_means, states, kl_upper_bound, _, ep_discounted_return = p.run_test(max_len = 1000, deterministic = True)
             if ep_reward != np.nan:
                 sampled_ep_rewards.append(ep_reward)
                 sampled_ep_returns.append(ep_return)
                 sampled_ep_lengths.append(ep_length)
+                sampled_ep_ori_returns.append(ep_ori_return)
         print(f'Attack method = {p.params.ATTACK_METHOD}')
         print(f'avg of {num_sampled_episodes} episodes: \
               ep_reward = {np.mean(sampled_ep_rewards):.4f} +- {np.std(sampled_ep_rewards):.4f} | \
               ep_return = {np.mean(sampled_ep_returns):.4f} +- {np.std(sampled_ep_returns):.4f} | \
+              ep_ori_return = {np.mean(sampled_ep_ori_returns):.4f} +- {np.std(sampled_ep_ori_returns):.4f} | \
               ep_length = {np.mean(sampled_ep_lengths):.4f} +- {np.std(sampled_ep_lengths):.4f}'
         )
 
@@ -323,6 +326,7 @@ def main():
             'ep_reward' : sampled_ep_rewards,
             'ep_return' : sampled_ep_returns,
             'ep_length' : sampled_ep_lengths,
+            'ep_ori_return' : sampled_ep_ori_returns,
         }
 
 

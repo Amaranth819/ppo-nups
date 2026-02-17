@@ -141,9 +141,9 @@ class Env:
         self.counter += 1
         _reward = self.reward_filter(reward)
 
-        # Add the unnormalized reward to info
-        info['unnorm_reward'] = reward
-        info['unnorm_state'] = state
+        # Add the original reward and state to info
+        info['original_reward'] = reward
+        info['original_state'] = state
 
         if is_done:
             info['done'] = (self.counter, self.total_true_reward)

@@ -16,6 +16,7 @@ def read_nuus_res(
     
     rewards_table = defaultdict(lambda: [])
     d_returns_table = defaultdict(lambda: [])
+    ori_d_returns_table = defaultdict(lambda: [])
 
     for env in envs:
         for attack in attack_methods:
@@ -29,8 +30,9 @@ def read_nuus_res(
                         data = json.load(jf)
                         rewards_table[env, attack, beta].extend(data['results'][attack]['ep_reward'])
                         d_returns_table[env, attack, beta].extend(data['results'][attack]['ep_return'])
+                        ori_d_returns_table[env, attack, beta].extend(data['results'][attack]['ep_ori_return'])
 
-    return dict(rewards_table), dict(d_returns_table)
+    return dict(rewards_table), dict(d_returns_table), dict(ori_d_returns_table)
 
 
 
@@ -68,7 +70,8 @@ if __name__ == '__main__':
     attack_methods = ['none', 'random', 'critic', 'action'][:1]
     betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0][:1]
 
-    reward_table, d_return_table = read_nuus_res(res_root_dir = 'nuus_test', algo = algo, envs = envs, attack_methods = attack_methods, betas = betas)
+    reward_table, d_return_table, ori_d_returns_table = read_nuus_res(res_root_dir = 'nuus_test', algo = algo, envs = envs, attack_methods = attack_methods, betas = betas)
     
     export_res_latex_table(d_return_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Discounted total return')
+    export_res_latex_table(ori_d_returns_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Discounted total return on original rewards')
     export_res_latex_table(reward_table, envs = envs, attack_methods = attack_methods, betas = betas, caption = 'Total rewards')
