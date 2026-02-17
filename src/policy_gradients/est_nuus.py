@@ -265,7 +265,7 @@ def estimate_advantage_obj_with_cmaes(
     sigma = sigma_init
     
     # Selection parameters
-    weights = np.log(num_elites + 0.5) - torch.log(torch.arange(1, num_elites + 1).to(device))
+    weights = np.log(num_elites + 0.5) - torch.log(torch.arange(1, num_elites + 1).to(device).float())
     weights /= torch.sum(weights)
 
     best = -float('inf')
@@ -274,7 +274,11 @@ def estimate_advantage_obj_with_cmaes(
         for i in range(max_iters):
             dist = torch.distributions.MultivariateNormal(mean, cov * sigma**2)
             samples = dist.sample((num_samples,))
-            actions_sampled = torch.clamp(samples, min=action_low, max=action_high)
+            
+            # # Clamping with tensor min or max is not supported in torch 1.6.0
+            # actions_sampled = torch.clamp(samples, min=action_low, max=action_high)
+
+            actions_sampled = torch.max(torch.min(samples, action_high), action_low)
 
             # 2. Evaluate advantages for all sampled actions
             state_batch = state.repeat(num_samples, 1)
@@ -301,7 +305,8 @@ def estimate_advantage_obj_with_cmaes(
             centered_elites = elites - old_mean.unsqueeze(0)
             new_cov = torch.zeros_like(cov)
             for j in range(num_elites):
-                new_cov += weights[j] * torch.outer(centered_elites[j], centered_elites[j])
+                # new_cov += weights[j] * torch.outer(centered_elites[j], centered_elites[j])
+                new_cov += weights[j] * torch.ger(centered_elites[j], centered_elites[j]) # Use torch.ger() in torch 1.6.0
             
             # Add a small regularization to keep cov positive definite
             cov = 0.8 * cov + 0.2 * (new_cov / (sigma**2) + 1e-6 * torch.eye(action_dim).to(device))

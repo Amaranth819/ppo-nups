@@ -17,5 +17,5 @@ requirements = (CUDAGlobalMemoryMb >= 22699) && (CUDAGlobalMemoryMb < 40000)
 # concurrency_limits = MyLimit:32
 
 
-# queue filename matching files test_nuus_inputs/vanilla_ppo/hopper_vanilla_ppo_5c8de009-b865-4c1b-b311-375f5978186c_beta=2.0.input
+# queue filename matching files test_nuus_inputs/vanilla_ppo/hopper_vanilla_ppo_20abb0e1-18e8-4400-b2ec-f11122196141_beta=0.1.input
 queue filename matching files test_nuus_inputs/vanilla_ppo/*.input
