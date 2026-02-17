@@ -558,3 +558,23 @@ def orthogonal_init(tensor, gain=1):
         tensor.view_as(q).copy_(q)
         tensor.mul_(gain)
     return tensor
+
+
+
+
+
+class ScalingFilter:
+    """
+    y = cx
+    """
+    def __init__(self, prev_filter, coef):
+        self.prev_filter = prev_filter
+        self.coef = coef
+
+    def __call__(self, x, **kwargs):
+        x = self.prev_filter(x, **kwargs)
+        x = self.coef * x
+        return x
+
+    def reset(self):
+        self.prev_filter.reset()

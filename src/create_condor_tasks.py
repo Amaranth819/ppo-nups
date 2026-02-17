@@ -9,7 +9,7 @@ def condor_train_tasks(root_dir = 'run_exp_inputs/'):
     idx = 0
     for seed in [1, 23, 42, 233, 234, 236, 667, 888][:4]:
         for env in ['hopper', 'halfcheetah', 'walker', 'humanoid', 'ant'][:3]:
-            for algo in ['vanilla_ppo', 'robust_ppo_sgld', 'robust_q_ppo_sgld'][:]:
+            for algo in ['vanilla_ppo', 'robust_ppo_sgld', 'robust_q_ppo_sgld'][:1]:
                 content = []
                 content.append(f'config_{env}_{algo}.json\n')
                 content.append(f'{seed}\n')
@@ -57,7 +57,7 @@ def condor_nuus_tasks(
     exp_root_dir = 'exps', 
     envs = ['hopper', 'halfcheetah', 'walker2d'][:],
     algo = 'vanilla_ppo', 
-    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0],
+    betas = [2.0, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0][:1],
     test_task_root_dir = 'test_nuus_inputs/'
 ):
     test_task_root_path = os.path.join(test_task_root_dir, algo)

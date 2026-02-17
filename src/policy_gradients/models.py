@@ -81,7 +81,7 @@ class ValueDenseNet(nn.Module):
     fully connected hidden layers (by default 2 * 128-neuron layers),
     maps a state of size (state_dim) -> a scalar value.
     '''
-    def __init__(self, state_dim, init=None, hidden_sizes=(64, 64), activation=None):
+    def __init__(self, state_dim, init=None, hidden_sizes=HIDDEN_SIZES, activation=None):
         '''
         Initializes the value network.
         Inputs:
@@ -180,7 +180,7 @@ class ValueLSTMNet(nn.Module):
     fully connected hidden layers (by default 2 * 128-neuron layers),
     maps a state of size (state_dim) -> a scalar value.
     '''
-    def __init__(self, state_dim, init=None, hidden_sizes=(64, 64), activation=None):
+    def __init__(self, state_dim, init=None, hidden_sizes=HIDDEN_SIZES, activation=None):
         '''
         Initializes the value network.
         Inputs:

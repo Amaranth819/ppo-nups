@@ -212,6 +212,8 @@ def main(params):
 
     # Write the configuration json file to the directory
     with open(os.path.join(p.store.path, 'train.json'), 'w') as f:
+        del original_params['no_load_adv_policy']
+        del original_params['adv_policy_only']
         json.dump(original_params, f, indent = 4)
 
 

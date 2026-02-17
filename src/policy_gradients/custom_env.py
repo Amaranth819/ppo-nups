@@ -10,7 +10,7 @@ from gymnasium.spaces.box import Box as Continuous
 import gymnasium as gym
 
 import random
-from .torch_utils import RunningStat, ZFilter, Identity, StateWithTime, RewardFilter
+from .torch_utils import RunningStat, ZFilter, Identity, StateWithTime, RewardFilter, ScalingFilter
 
 class Env:
     '''
@@ -65,6 +65,9 @@ class Env:
             self.reward_filter = ZFilter(self.reward_filter, shape=(), center=False, clip=clip_rew)
         elif norm_rewards == "returns":
             self.reward_filter = RewardFilter(self.reward_filter, shape=(), gamma=params.GAMMA, clip=clip_rew)
+        # Normalize the rewards by *(1-gamma), more convenient for calculating the returns.
+        elif norm_rewards == "scale":
+            self.reward_filter = ScalingFilter(self.reward_filter, coef = 1 - params.GAMMA)
 
         # Running total reward (set to 0.0 at resets)
         self.total_true_reward = 0.0

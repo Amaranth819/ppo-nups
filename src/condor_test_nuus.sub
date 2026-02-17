@@ -18,6 +18,4 @@ requirements = (CUDAGlobalMemoryMb >= 22699) && (CUDAGlobalMemoryMb < 40000)
 
 
 # queue filename matching files test_nuus_inputs/vanilla_ppo/hopper_vanilla_ppo_5c8de009-b865-4c1b-b311-375f5978186c_beta=2.0.input
-# queue filename matching files test_nuus_inputs/vanilla_ppo/*.input
-queue filename matching files test_nuus_inputs/vanilla_ppo/hopper*5c8de009-b865-4c1b-b311-375f5978186c*.input
-queue filename matching files test_nuus_inputs/vanilla_ppo/hopper*5ef44dd2-4893-4f93-ab17-50717a8a9243*.input
+queue filename matching files test_nuus_inputs/vanilla_ppo/*.input

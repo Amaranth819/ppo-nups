@@ -65,6 +65,10 @@ def load_trainer(params):
         # Load from a pretrained model using existing config.
         # First we need to create the model using the given config file.
         json_params = json.load(open(params["config_path"]))
+        if 'no_load_adv_policy' in json_params.keys():
+            del json_params['no_load_adv_policy']
+        if 'adv_policy_only' in json_params.keys():
+            del json_params['adv_policy_only']
 
         params = override_json_params(
             params, 
@@ -135,11 +139,11 @@ def load_trainer(params):
     if params["noise_factor"] != 1.0:
         p.policy_model.log_stdev.data[:] += np.log(params["noise_factor"])
         print('Add noise factor:', params["noise_factor"])
-    # if params["deterministic"]:
-    #     print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
-    #     p.policy_model.log_stdev.data[:] = -100
-    # print('Gaussian noise in policy (after adjustment):')
-    # print(torch.exp(p.policy_model.log_stdev))
+    if params["deterministic"]:
+        print('Policy runs in deterministic mode. Ignoring Gaussian noise.')
+        p.policy_model.log_stdev.data[:] = -100
+    print('Gaussian noise in policy (after adjustment):')
+    print(torch.exp(p.policy_model.log_stdev))
 
     return p, params
 
@@ -290,7 +294,7 @@ def main():
     p, params = load_trainer(params)
     num_sampled_episodes = 20
 
-    for attack_method in ['none', 'random', 'critic', 'action', 'sarsa'][:-1]:
+    for attack_method in ['none', 'random', 'critic', 'action', 'sarsa'][:1]:
         final_results = {}
         final_results['results'] = {}
         final_results['params'] = {key : params[key] for key in nuus_params}
