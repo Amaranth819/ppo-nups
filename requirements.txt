@@ -1,0 +1,17 @@
+pandas
+gym
+numpy
+dill
+matplotlib
+torch>=1.3.0,<1.7
+tqdm
+gitpython
+scikit_learn
+tensorboardX
+tables
+packaging>=20.0
+pytest>=5.0
+appdirs>=1.4
+oslo.concurrency>=4.2
+gymnasium==1.1.1
+mujoco==3.2.3

@@ -1,0 +1,18 @@
+executable = ./condor_run_exps.sh
+arguments = $(filename)
+
+error  = $(filename).err
+output = $(filename).out
+log    = condor_run_exps.log
+
+notification = Complete
+# notify_user = xchen168@syr.edu
+
+# 45466 for better gpu
+requirements = (CUDAGlobalMemoryMb >= 22699) && (CUDAGlobalMemoryMb < 40000)
++request_gpus = 1
+
+
+
+queue filename matching files run_exp_inputs/*.input
+# queue filename matching files run_exp_inputs/hopper_radial_ppo_seed1.input

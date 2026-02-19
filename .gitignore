@@ -1,0 +1,10 @@
+src/exps*/
+*__pycache__/
+src/run_exp_inputs/
+*.log
+*.zip
+tabular_example/*npz
+tabular_example/*png
+.vscode/
+src/nuus_test*/
+src/test_nuus_inputs/
